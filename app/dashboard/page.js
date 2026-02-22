@@ -352,6 +352,19 @@ export default function DashboardPage() {
     }
   };
 
+  const handleDownloadTicket = async (pdfUrl) => {
+    const filePath = extractStoragePathFromUrl(pdfUrl);
+    if (!filePath) return;
+    const { data, error } = await supabase.storage
+      .from('tickets')
+      .createSignedUrl(filePath, 60);
+    if (error || !data?.signedUrl) {
+      console.error('Error creating signed URL:', error);
+      return;
+    }
+    window.open(data.signedUrl, '_blank');
+  };
+
   // Stats
   const activeCount = sellerTickets.filter((t) => t.status === 'available').length;
   const soldCount = sellerTickets.filter((t) => t.status === 'sold').length;
@@ -551,14 +564,13 @@ export default function DashboardPage() {
                             </td>
                             <td className="px-3 py-2 text-right text-xs">
                               {ticket.pdf_url ? (
-                                <a
-                                  href={ticket.pdf_url}
-                                  target="_blank"
-                                  rel="noreferrer"
+                                <button
+                                  type="button"
+                                  onClick={() => handleDownloadTicket(ticket.pdf_url)}
                                   className="rounded-full bg-sky-500 px-3 py-1 text-[11px] font-medium text-white shadow-sm shadow-sky-500/30 hover:bg-sky-400"
                                 >
                                   {t('dash.download', lang)}
-                                </a>
+                                </button>
                               ) : (
                                 <span className="text-[10px] text-slate-400">—</span>
                               )}
