@@ -269,10 +269,16 @@ export default function DashboardPage() {
 
   const extractStoragePathFromUrl = (url) => {
     if (!url) return null;
-    const marker = '/storage/v1/object/public/tickets/';
-    const index = url.indexOf(marker);
-    if (index === -1) return url;
-    return url.substring(index + marker.length);
+    const markers = [
+      '/storage/v1/object/public/tickets/',
+      '/storage/v1/object/authenticated/tickets/',
+      '/storage/v1/object/sign/tickets/',
+    ];
+    for (const marker of markers) {
+      const index = url.indexOf(marker);
+      if (index !== -1) return decodeURIComponent(url.substring(index + marker.length).split('?')[0]);
+    }
+    return url;
   };
 
   const handleDeleteTicket = async (ticket) => {
@@ -352,17 +358,29 @@ export default function DashboardPage() {
     }
   };
 
+  const [downloadError, setDownloadError] = useState(null);
+
   const handleDownloadTicket = async (pdfUrl) => {
+    setDownloadError(null);
     const filePath = extractStoragePathFromUrl(pdfUrl);
-    if (!filePath) return;
-    const { data, error } = await supabase.storage
-      .from('tickets')
-      .createSignedUrl(filePath, 60);
-    if (error || !data?.signedUrl) {
-      console.error('Error creating signed URL:', error);
+    if (!filePath) {
+      setDownloadError('Geen bestand gevonden.');
       return;
     }
-    window.open(data.signedUrl, '_blank');
+
+    try {
+      const { data, error } = await supabase.storage
+        .from('tickets')
+        .createSignedUrl(filePath, 60);
+
+      if (error) throw error;
+      if (!data?.signedUrl) throw new Error('Geen signed URL ontvangen');
+
+      window.open(data.signedUrl, '_blank');
+    } catch (err) {
+      console.error('Download error:', err, '| filePath:', filePath, '| pdfUrl:', pdfUrl);
+      window.open(pdfUrl, '_blank');
+    }
   };
 
   // Stats
