@@ -106,6 +106,12 @@ export default function Navbar() {
           </Link>
           <div className="flex items-center gap-4 text-sm text-slate-600">
             <Link
+              href="/markt"
+              className="hidden rounded-full bg-sky-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-sky-500/30 transition hover:bg-sky-400 sm:inline-block"
+            >
+              {t('nav.market', lang)}
+            </Link>
+            <Link
               href="/hoe-het-werkt"
               className="hidden rounded-full border border-slate-200 px-4 py-1.5 text-xs font-medium uppercase tracking-[0.18em] text-slate-600 hover:border-slate-300 hover:bg-slate-50 sm:inline-block"
             >
