@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import supabase from '@/lib/supabase';
 import Navbar from '@/components/Navbar';
@@ -15,25 +15,39 @@ export default function AuthGate({ children }) {
 
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 
+  const checkAccess = useCallback(async () => {
+    const { data } = await supabase.auth.getUser();
+    const email = data?.user?.email;
+
+    if (email && ALLOWED_EMAILS.includes(email)) {
+      setAllowed(true);
+    } else {
+      setAllowed(false);
+      router.replace('/coming-soon');
+    }
+  }, [router]);
+
   useEffect(() => {
     if (isPublic) {
       setAllowed(true);
       return;
     }
 
-    async function check() {
-      const { data } = await supabase.auth.getUser();
-      const email = data?.user?.email;
+    checkAccess();
 
-      if (email && ALLOWED_EMAILS.includes(email)) {
-        setAllowed(true);
-      } else {
-        router.replace('/coming-soon');
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (!isPublic) {
+          const email = session?.user?.email;
+          if (email && ALLOWED_EMAILS.includes(email)) {
+            setAllowed(true);
+          }
+        }
       }
-    }
+    );
 
-    check();
-  }, [pathname, isPublic, router]);
+    return () => subscription.unsubscribe();
+  }, [pathname, isPublic, checkAccess]);
 
   if (isPublic) return children;
   if (allowed === null) {
