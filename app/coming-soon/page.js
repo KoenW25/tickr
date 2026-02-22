@@ -104,6 +104,12 @@ export default function ComingSoonPage() {
         <p className="mt-12 text-xs text-slate-400">
           © {new Date().getFullYear()} Tickr
         </p>
+        <a
+          href="/login"
+          className="mt-4 inline-block text-xs text-slate-400 underline hover:text-slate-600"
+        >
+          Team login
+        </a>
       </div>
     </div>
   );
