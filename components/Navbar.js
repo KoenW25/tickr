@@ -45,10 +45,10 @@ export default function Navbar() {
         .not('ask_price', 'is', null);
 
       const priceMap = {};
-      for (const t of tickets ?? []) {
-        if (!t.event_id) continue;
-        if (!priceMap[t.event_id]) priceMap[t.event_id] = [];
-        priceMap[t.event_id].push(Number(t.ask_price));
+      for (const ticket of tickets ?? []) {
+        if (!ticket.event_id) continue;
+        if (!priceMap[ticket.event_id]) priceMap[ticket.event_id] = [];
+        priceMap[ticket.event_id].push(Number(ticket.ask_price));
       }
 
       const eventIds = events.map((e) => e.id);
@@ -86,11 +86,8 @@ export default function Navbar() {
   }, []);
 
   const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-    } finally {
-      router.push('/');
-    }
+    await supabase.auth.signOut();
+    window.location.href = '/';
   };
 
   const displayName =
