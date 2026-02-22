@@ -1,9 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useLanguage } from '@/lib/LanguageContext';
+import { t } from '@/lib/translations';
 import supabase from '@/lib/supabase';
 
 export default function DashboardPage() {
+  const { lang } = useLanguage();
   const [user, setUser] = useState(null);
   const [loadingUser, setLoadingUser] = useState(true);
 
@@ -79,7 +82,7 @@ export default function DashboardPage() {
         setSellerTickets(enriched);
       } catch (err) {
         console.error('Error fetching seller tickets:', err);
-        setTicketsError('Er ging iets mis bij het ophalen van je tickets.');
+        setTicketsError(t('dash.fetchError', lang));
       } finally {
         setLoadingSellerTickets(false);
       }
@@ -255,10 +258,10 @@ export default function DashboardPage() {
         { onConflict: 'user_id' }
       );
       if (error) throw error;
-      setProfileMessage('Je gegevens zijn opgeslagen.');
+      setProfileMessage(t('dash.profileSaved', lang));
     } catch (err) {
       console.error('Error saving profile:', err);
-      setProfileMessage('Er ging iets mis bij het opslaan.');
+      setProfileMessage(t('dash.profileError', lang));
     } finally {
       setSavingProfile(false);
     }
@@ -273,7 +276,7 @@ export default function DashboardPage() {
   };
 
   const handleDeleteTicket = async (ticket) => {
-    if (!window.confirm('Weet je zeker dat je dit ticket wilt verwijderen?')) return;
+    if (!window.confirm(t('dash.confirmDelete', lang))) return;
     setDeletingId(ticket.id);
     setTicketsError(null);
     try {
@@ -283,18 +286,18 @@ export default function DashboardPage() {
         if (storageError) console.error('Error deleting ticket PDF from storage:', storageError);
       }
       const { error: deleteError } = await supabase.from('tickets').delete().eq('id', ticket.id);
-      if (deleteError) { setTicketsError('Er ging iets mis bij het verwijderen.'); return; }
+      if (deleteError) { setTicketsError(t('dash.deleteError', lang)); return; }
       setSellerTickets((prev) => prev.filter((t) => t.id !== ticket.id));
     } catch (err) {
       console.error('Unexpected error deleting ticket:', err);
-      setTicketsError('Er ging iets mis bij het verwijderen.');
+      setTicketsError(t('dash.deleteError', lang));
     } finally {
       setDeletingId(null);
     }
   };
 
   const handleAcceptBid = async (bid) => {
-    if (!window.confirm(`Weet je zeker dat je het bod van € ${Number(bid.bid_price).toFixed(2).replace('.', ',')} wilt accepteren? De koper heeft 2 uur om te betalen.`)) return;
+    if (!window.confirm(t('dash.confirmAccept', lang) + ` €${Number(bid.bid_price).toFixed(2).replace('.', ',')} ` + t('dash.confirmAcceptSuffix', lang))) return;
     setAcceptingBidId(bid.id);
     try {
       const reservedUntil = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
@@ -302,7 +305,7 @@ export default function DashboardPage() {
 
       if (!targetTicketId && bid.event_id) {
         const availableTicket = sellerTickets.find((t) => t.event_id === bid.event_id && t.status === 'available');
-        if (!availableTicket) { setTicketsError('Geen beschikbaar ticket gevonden om aan dit bod te koppelen.'); setAcceptingBidId(null); return; }
+        if (!availableTicket) { setTicketsError(t('dash.acceptNoTicket', lang)); setAcceptingBidId(null); return; }
         targetTicketId = availableTicket.id;
         await supabase.from('bids').update({ ticket_id: targetTicketId }).eq('id', bid.id);
       }
@@ -329,14 +332,14 @@ export default function DashboardPage() {
       }
     } catch (err) {
       console.error('Error accepting bid:', err);
-      setTicketsError('Er ging iets mis bij het accepteren van het bod.');
+      setTicketsError(t('dash.acceptError', lang));
     } finally {
       setAcceptingBidId(null);
     }
   };
 
   const handleCancelMyBid = async (bid) => {
-    if (!window.confirm(`Weet je zeker dat je je bod van € ${Number(bid.bid_price).toFixed(2).replace('.', ',')} wilt intrekken?`)) return;
+    if (!window.confirm(t('dash.confirmWithdraw', lang) + ` €${Number(bid.bid_price).toFixed(2).replace('.', ',')} ` + t('dash.confirmWithdrawSuffix', lang))) return;
     setDeletingBidId(bid.id);
     try {
       const { error } = await supabase.from('bids').update({ status: 'cancelled' }).eq('id', bid.id);
@@ -361,18 +364,18 @@ export default function DashboardPage() {
       <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
         <header className="mb-8">
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-            Welkom{loadingUser ? '' : displayName ? `, ${displayName}` : ''}
+            {t('dash.welcome', lang)}{loadingUser ? '' : displayName ? `, ${displayName}` : ''}
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            Een overzicht van je tickets, biedingen en aankopen.
+            {t('dash.subtitle', lang)}
           </p>
         </header>
 
         {/* Tabs */}
         <div className="mb-8 flex gap-2">
           {[
-            { id: 'overzicht', label: 'Overzicht' },
-            { id: 'gegevens', label: 'Mijn gegevens' },
+            { id: 'overzicht', label: t('dash.tabOverview', lang) },
+            { id: 'gegevens', label: t('dash.tabProfile', lang) },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -392,33 +395,33 @@ export default function DashboardPage() {
         {/* Mijn gegevens tab */}
         {activeTab === 'gegevens' && (
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-100">
-            <h2 className="mb-1 text-sm font-semibold text-slate-900">Mijn gegevens</h2>
+            <h2 className="mb-1 text-sm font-semibold text-slate-900">{t('dash.tabProfile', lang)}</h2>
             <p className="mb-6 text-xs text-slate-500">
-              Vul je gegevens in zodat we je kunnen bereiken en uitbetalingen kunnen verwerken.
+              {t('dash.profileDesc', lang)}
             </p>
             {loadingProfile ? (
-              <p className="text-xs text-slate-500">Bezig met laden...</p>
+              <p className="text-xs text-slate-500">{t('dash.loading', lang)}</p>
             ) : (
               <div className="grid gap-5 sm:grid-cols-2">
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-slate-700">Volledige naam</label>
-                  <input type="text" value={profile.full_name} onChange={(e) => setProfile((p) => ({ ...p, full_name: e.target.value }))} placeholder="Jan Jansen" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400" />
+                  <label className="text-xs font-medium text-slate-700">{t('dash.fullName', lang)}</label>
+                  <input type="text" value={profile.full_name} onChange={(e) => setProfile((p) => ({ ...p, full_name: e.target.value }))} placeholder={t('dash.namePlaceholder', lang)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400" />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-slate-700">E-mailadres</label>
-                  <input type="email" value={profile.email} onChange={(e) => setProfile((p) => ({ ...p, email: e.target.value }))} placeholder="jan@voorbeeld.nl" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400" />
+                  <label className="text-xs font-medium text-slate-700">{t('dash.email', lang)}</label>
+                  <input type="email" value={profile.email} onChange={(e) => setProfile((p) => ({ ...p, email: e.target.value }))} placeholder={t('dash.emailPlaceholder', lang)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400" />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-slate-700">Telefoonnummer</label>
-                  <input type="tel" value={profile.phone} onChange={(e) => setProfile((p) => ({ ...p, phone: e.target.value }))} placeholder="06 12345678" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400" />
+                  <label className="text-xs font-medium text-slate-700">{t('dash.phone', lang)}</label>
+                  <input type="tel" value={profile.phone} onChange={(e) => setProfile((p) => ({ ...p, phone: e.target.value }))} placeholder={t('dash.phonePlaceholder', lang)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400" />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-slate-700">IBAN (rekeningnummer)</label>
-                  <input type="text" value={profile.iban} onChange={(e) => setProfile((p) => ({ ...p, iban: e.target.value.toUpperCase() }))} placeholder="NL00 BANK 0000 0000 00" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-mono text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400" />
+                  <label className="text-xs font-medium text-slate-700">{t('dash.iban', lang)}</label>
+                  <input type="text" value={profile.iban} onChange={(e) => setProfile((p) => ({ ...p, iban: e.target.value.toUpperCase() }))} placeholder={t('dash.ibanPlaceholder', lang)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-mono text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400" />
                 </div>
                 <div className="sm:col-span-2 flex items-center gap-4 pt-2">
                   <button type="button" onClick={handleSaveProfile} disabled={savingProfile} className="rounded-full bg-emerald-500 px-6 py-2 text-xs font-semibold text-white shadow-sm shadow-emerald-500/30 hover:bg-emerald-400 disabled:opacity-60">
-                    {savingProfile ? 'Bezig met opslaan...' : 'Opslaan'}
+                    {savingProfile ? t('dash.saving', lang) : t('dash.save', lang)}
                   </button>
                   {profileMessage && (
                     <p className={`text-xs ${profileMessage.includes('mis') ? 'text-rose-600' : 'text-emerald-600'}`}>{profileMessage}</p>
@@ -435,43 +438,43 @@ export default function DashboardPage() {
             {/* Statistieken */}
             <section className="mb-8 grid gap-4 sm:grid-cols-3">
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-100">
-                <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Actieve tickets</p>
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-400">{t('dash.active', lang)}</p>
                 <p className="mt-2 text-2xl font-semibold text-slate-900">{activeCount}</p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-100">
-                <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Verkocht</p>
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-400">{t('dash.sold', lang)}</p>
                 <p className="mt-2 text-2xl font-semibold text-emerald-600">{soldCount}</p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-100">
-                <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Gekocht</p>
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-400">{t('dash.bought', lang)}</p>
                 <p className="mt-2 text-2xl font-semibold text-sky-600">{boughtCount}</p>
               </div>
             </section>
 
             {/* Verkoper: Mijn aangeboden tickets */}
             <section className="mb-8 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-100">
-              <h2 className="mb-3 text-sm font-semibold text-slate-900">Mijn aangeboden tickets</h2>
+              <h2 className="mb-3 text-sm font-semibold text-slate-900">{t('dash.myListings', lang)}</h2>
               {ticketsError && (
                 <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{ticketsError}</div>
               )}
               {loadingSellerTickets ? (
-                <div className="rounded-xl border border-slate-100 px-4 py-6 text-center text-xs text-slate-500">Bezig met laden...</div>
+                <div className="rounded-xl border border-slate-100 px-4 py-6 text-center text-xs text-slate-500">{t('dash.loading', lang)}</div>
               ) : sellerTickets.length === 0 ? (
-                <div className="rounded-xl border border-slate-100 px-4 py-6 text-center text-xs text-slate-500">Je hebt nog geen tickets aangeboden.</div>
+                <div className="rounded-xl border border-slate-100 px-4 py-6 text-center text-xs text-slate-500">{t('dash.noListings', lang)}</div>
               ) : (
                 <div className="overflow-x-auto rounded-xl border border-slate-100">
                   <table className="min-w-full divide-y divide-slate-100 text-sm">
                     <thead className="bg-slate-50">
                       <tr>
-                        <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Event</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Status</th>
-                        <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Vraagprijs</th>
-                        <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Acties</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-[0.16em] text-slate-500">{t('dash.event', lang)}</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-[0.16em] text-slate-500">{t('dash.status', lang)}</th>
+                        <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-[0.16em] text-slate-500">{t('dash.askPrice', lang)}</th>
+                        <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-[0.16em] text-slate-500">{t('dash.actions', lang)}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 bg-white">
                       {sellerTickets.map((ticket) => {
-                        const name = ticket.eventInfo?.name || ticket.event_name || 'Ticket';
+                        const name = ticket.eventInfo?.name || ticket.event_name || t('dash.ticket', lang);
                         const date = ticket.eventInfo?.date || ticket.event_date;
                         return (
                           <tr key={ticket.id}>
@@ -484,7 +487,7 @@ export default function DashboardPage() {
                               )}
                             </td>
                             <td className="px-3 py-2 text-xs">
-                              <TicketStatus ticket={ticket} />
+                              <TicketStatus ticket={ticket} lang={lang} />
                             </td>
                             <td className="px-3 py-2 text-right text-xs font-medium text-slate-900">
                               {ticket.ask_price != null ? `€ ${Number(ticket.ask_price).toFixed(2).replace('.', ',')}` : '—'}
@@ -497,7 +500,7 @@ export default function DashboardPage() {
                                   disabled={deletingId === ticket.id}
                                   className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-medium text-rose-700 hover:border-rose-300 hover:bg-rose-100 disabled:opacity-60"
                                 >
-                                  {deletingId === ticket.id ? 'Bezig...' : 'Verwijderen'}
+                                  {deletingId === ticket.id ? t('dash.deleting', lang) : t('dash.delete', lang)}
                                 </button>
                               ) : (
                                 <span className="text-[10px] text-slate-400">—</span>
@@ -514,24 +517,24 @@ export default function DashboardPage() {
 
             {/* Koper: Mijn gekochte tickets */}
             <section className="mb-8 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-100">
-              <h2 className="mb-3 text-sm font-semibold text-slate-900">Mijn gekochte tickets</h2>
+              <h2 className="mb-3 text-sm font-semibold text-slate-900">{t('dash.myPurchases', lang)}</h2>
               {loadingPurchased ? (
-                <div className="rounded-xl border border-slate-100 px-4 py-6 text-center text-xs text-slate-500">Bezig met laden...</div>
+                <div className="rounded-xl border border-slate-100 px-4 py-6 text-center text-xs text-slate-500">{t('dash.loading', lang)}</div>
               ) : purchasedTickets.length === 0 ? (
-                <div className="rounded-xl border border-slate-100 px-4 py-6 text-center text-xs text-slate-500">Je hebt nog geen tickets gekocht.</div>
+                <div className="rounded-xl border border-slate-100 px-4 py-6 text-center text-xs text-slate-500">{t('dash.noPurchases', lang)}</div>
               ) : (
                 <div className="overflow-x-auto rounded-xl border border-slate-100">
                   <table className="min-w-full divide-y divide-slate-100 text-sm">
                     <thead className="bg-slate-50">
                       <tr>
-                        <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Event</th>
-                        <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Betaald</th>
-                        <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Ticket</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-[0.16em] text-slate-500">{t('dash.event', lang)}</th>
+                        <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-[0.16em] text-slate-500">{t('dash.paid', lang)}</th>
+                        <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-[0.16em] text-slate-500">{t('dash.ticket', lang)}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 bg-white">
                       {purchasedTickets.map((ticket) => {
-                        const name = ticket.eventInfo?.name || ticket.event_name || 'Ticket';
+                        const name = ticket.eventInfo?.name || ticket.event_name || t('dash.ticket', lang);
                         const date = ticket.eventInfo?.date || ticket.event_date;
                         return (
                           <tr key={ticket.id}>
@@ -554,7 +557,7 @@ export default function DashboardPage() {
                                   rel="noreferrer"
                                   className="rounded-full bg-sky-500 px-3 py-1 text-[11px] font-medium text-white shadow-sm shadow-sky-500/30 hover:bg-sky-400"
                                 >
-                                  Download ticket
+                                  {t('dash.download', lang)}
                                 </a>
                               ) : (
                                 <span className="text-[10px] text-slate-400">—</span>
@@ -572,20 +575,20 @@ export default function DashboardPage() {
             {/* Biedingen op mijn tickets (verkoper) */}
             <div className="grid gap-8 lg:grid-cols-2">
               <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-100">
-                <h2 className="mb-3 text-sm font-semibold text-slate-900">Biedingen op mijn tickets</h2>
+                <h2 className="mb-3 text-sm font-semibold text-slate-900">{t('dash.bidsOnMine', lang)}</h2>
                 {loadingBids ? (
-                  <div className="rounded-xl border border-slate-100 px-4 py-6 text-center text-xs text-slate-500">Bezig met laden...</div>
+                  <div className="rounded-xl border border-slate-100 px-4 py-6 text-center text-xs text-slate-500">{t('dash.loading', lang)}</div>
                 ) : bidsOnMyTickets.length === 0 ? (
-                  <div className="rounded-xl border border-slate-100 px-4 py-6 text-center text-xs text-slate-500">Er zijn nog geen biedingen op je tickets.</div>
+                  <div className="rounded-xl border border-slate-100 px-4 py-6 text-center text-xs text-slate-500">{t('dash.noBidsOnMine', lang)}</div>
                 ) : (
                   <div className="overflow-x-auto rounded-xl border border-slate-100">
                     <table className="min-w-full divide-y divide-slate-100 text-sm">
                       <thead className="bg-slate-50">
                         <tr>
-                          <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Event</th>
-                          <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Bod</th>
-                          <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Status</th>
-                          <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Acties</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-[0.16em] text-slate-500">{t('dash.event', lang)}</th>
+                          <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-[0.16em] text-slate-500">{t('dash.bidLabel', lang)}</th>
+                          <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-[0.16em] text-slate-500">{t('dash.status', lang)}</th>
+                          <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-[0.16em] text-slate-500">{t('dash.actions', lang)}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 bg-white">
@@ -603,7 +606,7 @@ export default function DashboardPage() {
                                 € {Number(bid.bid_price).toFixed(2).replace('.', ',')}
                               </td>
                               <td className="px-3 py-2 text-right">
-                                <BidStatusPill status={bid.status} />
+                                <BidStatusPill status={bid.status} lang={lang} />
                               </td>
                               <td className="px-3 py-2 text-right text-xs">
                                 {bid.status === 'pending' ? (
@@ -613,7 +616,7 @@ export default function DashboardPage() {
                                     disabled={acceptingBidId === bid.id}
                                     className="rounded-full bg-emerald-500 px-3 py-1 text-[11px] font-medium text-white shadow-sm shadow-emerald-500/30 hover:bg-emerald-400 disabled:opacity-60"
                                   >
-                                    {acceptingBidId === bid.id ? 'Bezig...' : 'Accepteren'}
+                                    {acceptingBidId === bid.id ? t('dash.deleting', lang) : t('dash.accept', lang)}
                                   </button>
                                 ) : (
                                   <span className="text-[10px] text-slate-400">—</span>
@@ -630,20 +633,20 @@ export default function DashboardPage() {
 
               {/* Mijn biedingen (koper) */}
               <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-100">
-                <h2 className="mb-3 text-sm font-semibold text-slate-900">Mijn biedingen</h2>
+                <h2 className="mb-3 text-sm font-semibold text-slate-900">{t('dash.myBids', lang)}</h2>
                 {loadingMyBids ? (
-                  <div className="rounded-xl border border-slate-100 px-4 py-6 text-center text-xs text-slate-500">Bezig met laden...</div>
+                  <div className="rounded-xl border border-slate-100 px-4 py-6 text-center text-xs text-slate-500">{t('dash.loading', lang)}</div>
                 ) : myBids.length === 0 ? (
-                  <div className="rounded-xl border border-slate-100 px-4 py-6 text-center text-xs text-slate-500">Je hebt nog geen biedingen geplaatst.</div>
+                  <div className="rounded-xl border border-slate-100 px-4 py-6 text-center text-xs text-slate-500">{t('dash.noMyBids', lang)}</div>
                 ) : (
                   <div className="overflow-x-auto rounded-xl border border-slate-100">
                     <table className="min-w-full divide-y divide-slate-100 text-sm">
                       <thead className="bg-slate-50">
                         <tr>
-                          <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Event</th>
-                          <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Mijn bod</th>
-                          <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Status</th>
-                          <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Acties</th>
+                          <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-[0.16em] text-slate-500">{t('dash.event', lang)}</th>
+                          <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-[0.16em] text-slate-500">{t('dash.myBid', lang)}</th>
+                          <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-[0.16em] text-slate-500">{t('dash.status', lang)}</th>
+                          <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-[0.16em] text-slate-500">{t('dash.actions', lang)}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 bg-white">
@@ -661,7 +664,7 @@ export default function DashboardPage() {
                               € {Number(bid.bid_price).toFixed(2).replace('.', ',')}
                             </td>
                             <td className="px-3 py-2 text-right">
-                              <BidStatusPill status={bid.status} />
+                              <BidStatusPill status={bid.status} lang={lang} />
                             </td>
                             <td className="px-3 py-2 text-right text-xs">
                               {bid.status === 'pending' ? (
@@ -671,7 +674,7 @@ export default function DashboardPage() {
                                   disabled={deletingBidId === bid.id}
                                   className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-medium text-rose-700 hover:border-rose-300 hover:bg-rose-100 disabled:opacity-60"
                                 >
-                                  {deletingBidId === bid.id ? 'Bezig...' : 'Intrekken'}
+                                  {deletingBidId === bid.id ? t('dash.deleting', lang) : t('dash.withdraw', lang)}
                                 </button>
                               ) : (
                                 <span className="text-[10px] text-slate-400">—</span>
@@ -692,25 +695,27 @@ export default function DashboardPage() {
   );
 }
 
-function BidStatusPill({ status }) {
+function BidStatusPill({ status, lang }) {
   const config = {
-    pending: { label: 'Open', cls: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200' },
-    accepted: { label: 'Geaccepteerd', cls: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' },
-    cancelled: { label: 'Ingetrokken', cls: 'bg-slate-50 text-slate-400 ring-1 ring-slate-200' },
-    rejected: { label: 'Afgewezen', cls: 'bg-slate-100 text-slate-500 ring-1 ring-slate-200' },
+    pending: { labelKey: 'dash.statusOpen', cls: 'bg-amber-50 text-amber-700 ring-1 ring-amber-200' },
+    accepted: { labelKey: 'dash.statusAccepted', cls: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' },
+    cancelled: { labelKey: 'dash.statusWithdrawn', cls: 'bg-slate-50 text-slate-400 ring-1 ring-slate-200' },
+    rejected: { labelKey: 'dash.statusRejected', cls: 'bg-slate-100 text-slate-500 ring-1 ring-slate-200' },
   };
-  const c = config[status] || { label: status || '—', cls: 'bg-slate-100 text-slate-500 ring-1 ring-slate-200' };
-  return <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${c.cls}`}>{c.label}</span>;
+  const c = config[status];
+  const label = c ? t(c.labelKey, lang) : (status || '—');
+  const cls = c ? c.cls : 'bg-slate-100 text-slate-500 ring-1 ring-slate-200';
+  return <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${cls}`}>{label}</span>;
 }
 
-function TicketStatus({ ticket }) {
+function TicketStatus({ ticket, lang }) {
   const [timeLeft, setTimeLeft] = useState('');
 
   useEffect(() => {
     if (ticket.status !== 'reserved' || !ticket.reserved_until) return;
     function update() {
       const diff = new Date(ticket.reserved_until) - Date.now();
-      if (diff <= 0) { setTimeLeft('Verlopen'); return; }
+      if (diff <= 0) { setTimeLeft(t('dash.statusExpired', lang)); return; }
       const h = Math.floor(diff / 3600000);
       const m = Math.floor((diff % 3600000) / 60000);
       setTimeLeft(`${h}u ${m}m`);
@@ -718,21 +723,21 @@ function TicketStatus({ ticket }) {
     update();
     const interval = setInterval(update, 30000);
     return () => clearInterval(interval);
-  }, [ticket.status, ticket.reserved_until]);
+  }, [ticket.status, ticket.reserved_until, lang]);
 
   if (ticket.status === 'reserved') {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 ring-1 ring-amber-200">
-        Gereserveerd
+        {t('dash.statusReserved', lang)}
         {timeLeft && <span className="text-amber-500">({timeLeft})</span>}
       </span>
     );
   }
   if (ticket.status === 'sold') {
-    return <span className="inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 ring-1 ring-emerald-200">Verkocht</span>;
+    return <span className="inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 ring-1 ring-emerald-200">{t('dash.statusSold', lang)}</span>;
   }
   if (ticket.status === 'available') {
-    return <span className="inline-block rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-medium text-sky-700 ring-1 ring-sky-200">Beschikbaar</span>;
+    return <span className="inline-block rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-medium text-sky-700 ring-1 ring-sky-200">{t('dash.statusAvailable', lang)}</span>;
   }
   return <span className="text-slate-600">{ticket.status || '—'}</span>;
 }

@@ -1,5 +1,7 @@
 'use client';
 
+import { useLanguage } from '@/lib/LanguageContext';
+import { t } from '@/lib/translations';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -7,6 +9,7 @@ import supabase from '@/lib/supabase';
 import { calculateBuyerTotal, calculateServiceFee, formatPrice } from '@/lib/fees';
 
 export default function EventDetailPage() {
+  const { lang } = useLanguage();
   const { id: eventId } = useParams();
   const router = useRouter();
 
@@ -89,7 +92,7 @@ export default function EventDetailPage() {
         setBids(unique);
       } catch (err) {
         console.error('Error loading event detail:', err);
-        setError('Er ging iets mis bij het laden van dit event.');
+        setError(t('event.loadError', lang));
       } finally {
         setLoading(false);
       }
@@ -108,7 +111,7 @@ export default function EventDetailPage() {
     );
 
     if (!Number.isFinite(numeric) || numeric <= 0) {
-      setBidError('Vul een geldig bedrag in.');
+      setBidError(t('event.invalidAmount', lang));
       return;
     }
 
@@ -134,7 +137,7 @@ export default function EventDetailPage() {
       setBids((prev) =>
         [data, ...prev].sort((a, b) => b.bid_price - a.bid_price)
       );
-      setBidSuccess(`Je bod van € ${formatPrice(numeric)} is geplaatst!`);
+      setBidSuccess(`Je bod van € ${formatPrice(numeric)} ${t('event.bidPlaced', lang)}`);
       setBidAmount('');
     } catch (err) {
       console.error('Bid error:', err);
@@ -214,7 +217,7 @@ export default function EventDetailPage() {
           </div>
           <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4">
             <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-sky-500">
-              Bod (hoogste)
+              {t('event.bid', lang)}
             </p>
             <p className="mt-1 text-xl font-bold text-sky-700">
               {highestBid != null ? `€ ${formatPrice(highestBid)}` : '—'}
@@ -222,7 +225,7 @@ export default function EventDetailPage() {
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white p-4">
             <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
-              Spread
+              {t('event.spread', lang)}
             </p>
             <p className="mt-1 text-xl font-bold text-slate-700">
               {spread != null ? `€ ${formatPrice(spread)}` : '—'}
@@ -233,10 +236,10 @@ export default function EventDetailPage() {
         {/* Orderboek */}
         <section className="mb-8 rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-100">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
-            <h2 className="text-sm font-semibold text-slate-900">Orderboek</h2>
+            <h2 className="text-sm font-semibold text-slate-900">{t('event.orderbook', lang)}</h2>
             {spread != null && (
               <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
-                Spread: € {formatPrice(spread)}
+                {t('event.spread', lang)}: € {formatPrice(spread)}
               </span>
             )}
           </div>
@@ -245,12 +248,12 @@ export default function EventDetailPage() {
             {/* BID zijde (links) */}
             <div>
               <div className="grid grid-cols-2 border-b border-slate-100 px-4 py-2 text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
-                <span>Tijd</span>
-                <span className="text-right">Bod (BID)</span>
+                <span>{t('event.time', lang)}</span>
+                <span className="text-right">{t('event.bidLabel', lang)}</span>
               </div>
               {bids.length === 0 ? (
                 <div className="px-4 py-8 text-center text-xs text-slate-400">
-                  Nog geen biedingen
+                  {t('event.noBids', lang)}
                 </div>
               ) : (
                 <div className="max-h-80 overflow-y-auto">
@@ -285,12 +288,12 @@ export default function EventDetailPage() {
             {/* ASK zijde (rechts) */}
             <div>
               <div className="grid grid-cols-2 border-b border-slate-100 px-4 py-2 text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
-                <span>Laat (ASK)</span>
-                <span className="text-right">Incl. kosten</span>
+                <span>{t('event.askLabel', lang)}</span>
+                <span className="text-right">{t('event.inclFees', lang)}</span>
               </div>
               {tickets.length === 0 ? (
                 <div className="px-4 py-8 text-center text-xs text-slate-400">
-                  Nog geen aanbod
+                  {t('event.noSupply', lang)}
                 </div>
               ) : (
                 <div className="max-h-80 overflow-y-auto">
@@ -310,7 +313,7 @@ export default function EventDetailPage() {
                 </div>
               )}
               <div className="px-4 py-2 text-center text-[10px] text-slate-400">
-                {tickets.length} aanbieding{tickets.length !== 1 ? 'en' : ''} beschikbaar
+                {tickets.length} {t('event.offersAvailable', lang)}
               </div>
             </div>
           </div>
@@ -320,23 +323,23 @@ export default function EventDetailPage() {
         <div className="grid gap-4 sm:grid-cols-2">
           {/* Direct kopen */}
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-100">
-            <h3 className="text-sm font-semibold text-slate-900">Direct kopen</h3>
+            <h3 className="text-sm font-semibold text-slate-900">{t('event.buyNow', lang)}</h3>
             {lowestAsk != null && cheapestTicket ? (
               <>
                 <p className="mt-1 text-xs text-slate-500">
-                  Koop voor de laagste vraagprijs — direct afgehandeld.
+                  {t('event.buyNowDesc', lang)}
                 </p>
                 <div className="mt-3 space-y-1 text-xs text-slate-600">
                   <div className="flex justify-between">
-                    <span>Ticketprijs</span>
+                    <span>{t('event.ticketPrice', lang)}</span>
                     <span className="font-medium text-slate-900">€ {formatPrice(lowestAsk)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Servicekosten</span>
+                    <span>{t('event.serviceFees', lang)}</span>
                     <span className="font-medium text-slate-900">€ {formatPrice(calculateServiceFee(lowestAsk))}</span>
                   </div>
                   <div className="flex justify-between border-t border-slate-100 pt-1">
-                    <span className="font-semibold text-slate-900">Totaal</span>
+                    <span className="font-semibold text-slate-900">{t('event.total', lang)}</span>
                     <span className="font-semibold text-emerald-700">€ {formatPrice(calculateBuyerTotal(lowestAsk))}</span>
                   </div>
                 </div>
@@ -344,21 +347,21 @@ export default function EventDetailPage() {
                   href={`/checkout/${cheapestTicket.id}`}
                   className="mt-4 block w-full rounded-full bg-emerald-500 px-4 py-2.5 text-center text-xs font-semibold text-white shadow-sm shadow-emerald-500/30 hover:bg-emerald-400"
                 >
-                  Kopen voor € {formatPrice(calculateBuyerTotal(lowestAsk))}
+                  {t('event.buyFor', lang)} € {formatPrice(calculateBuyerTotal(lowestAsk))}
                 </Link>
               </>
             ) : (
               <p className="mt-3 text-xs text-slate-400">
-                Er zijn nog geen tickets te koop voor dit event. Plaats een bod om je interesse te tonen.
+                {t('event.noTicketsYet', lang)}
               </p>
             )}
           </div>
 
           {/* Bod plaatsen */}
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-100">
-            <h3 className="text-sm font-semibold text-slate-900">Bod plaatsen</h3>
+            <h3 className="text-sm font-semibold text-slate-900">{t('event.placeBid', lang)}</h3>
             <p className="mt-1 text-xs text-slate-500">
-              Plaats een anoniem bod op dit event. Verkopers zien jouw bod en beslissen of ze het accepteren.
+              {t('event.placeBidDesc', lang)}
             </p>
             <div className="relative mt-3">
               <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-xs text-slate-400">
@@ -369,7 +372,7 @@ export default function EventDetailPage() {
                 inputMode="decimal"
                 value={bidAmount}
                 onChange={(e) => setBidAmount(e.target.value)}
-                placeholder="Bijv. 50"
+                placeholder={t('event.bidPlaceholder', lang)}
                 className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-7 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
               />
             </div>
@@ -383,7 +386,7 @@ export default function EventDetailPage() {
               disabled={submitting}
               className="mt-3 w-full rounded-full bg-sky-500 px-4 py-2.5 text-xs font-semibold text-white shadow-sm shadow-sky-500/30 hover:bg-sky-400 disabled:opacity-60"
             >
-              {submitting ? 'Bezig...' : 'Bod plaatsen'}
+              {submitting ? t('event.submitting', lang) : t('event.placeBid', lang)}
             </button>
           </div>
         </div>

@@ -4,12 +4,15 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import supabase from '@/lib/supabase';
+import { useLanguage } from '@/lib/LanguageContext';
+import { t } from '@/lib/translations';
 
 export default function Navbar() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tickerEvents, setTickerEvents] = useState([]);
   const router = useRouter();
+  const { lang, setLang } = useLanguage();
 
   useEffect(() => {
     async function fetchUser() {
@@ -109,7 +112,7 @@ export default function Navbar() {
               href="/hoe-het-werkt"
               className="hidden rounded-full border border-slate-200 px-4 py-1.5 text-xs font-medium uppercase tracking-[0.18em] text-slate-600 hover:border-slate-300 hover:bg-slate-50 sm:inline-block"
             >
-              Hoe het werkt
+              {t('nav.howItWorks', lang)}
             </Link>
 
             {!loading && !user && (
@@ -117,7 +120,7 @@ export default function Navbar() {
                 href="/login"
                 className="rounded-full bg-emerald-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-emerald-500/30 transition hover:bg-emerald-400"
               >
-                Login
+                {t('nav.login', lang)}
               </Link>
             )}
 
@@ -127,20 +130,27 @@ export default function Navbar() {
                   href="/dashboard"
                   className="hidden rounded-full border border-slate-200 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 hover:border-slate-300 hover:bg-slate-50 sm:inline-block"
                 >
-                  Mijn dashboard
+                  {t('nav.dashboard', lang)}
                 </Link>
                 <Link
                   href="/upload"
                   className="hidden rounded-full bg-emerald-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-emerald-500/30 transition hover:bg-emerald-400 sm:inline-block"
                 >
-                  Ticket verkopen
+                  {t('nav.sell', lang)}
                 </Link>
                 <button
                   type="button"
                   onClick={handleLogout}
                   className="rounded-full bg-slate-900 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-slate-900/30 transition hover:bg-slate-800"
                 >
-                  Uitloggen
+                  {t('nav.logout', lang)}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLang(lang === 'nl' ? 'en' : 'nl')}
+                  className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition"
+                >
+                  {lang === 'nl' ? 'EN' : 'NL'}
                 </button>
               </div>
             )}
@@ -170,12 +180,12 @@ export default function Navbar() {
                             €{event.price}
                           </span>
                           <span className="text-[11px] text-emerald-400">
-                            {event.ticketCount} ticket{event.ticketCount !== 1 ? 's' : ''}
+                            {event.ticketCount} {event.ticketCount !== 1 ? t('nav.ticketsPlural', lang) : t('nav.tickets', lang)}
                           </span>
                         </>
                       ) : event.highestBid != null ? (
                         <span className="font-semibold text-sky-300">
-                          Bod €{event.highestBid}
+                          {t('nav.bid', lang)} €{event.highestBid}
                         </span>
                       ) : (
                         <span className="font-semibold text-slate-500">—</span>

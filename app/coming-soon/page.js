@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import { useLanguage } from '@/lib/LanguageContext';
+import { t } from '@/lib/translations';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -9,6 +11,7 @@ const supabase = createClient(
 );
 
 export default function ComingSoonPage() {
+  const { lang } = useLanguage();
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -61,10 +64,10 @@ export default function ComingSoonPage() {
         <div className="mb-8 text-7xl">🎟</div>
 
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-          We komen eraan
+          {t('soon.title', lang)}
         </h1>
         <p className="mt-3 text-sm text-slate-500">
-          Tickr wordt de eerlijke markt voor live tickets
+          {t('soon.subtitle', lang)}
         </p>
 
         <form onSubmit={handleSubmit} className="mt-10 flex gap-2">
@@ -73,7 +76,7 @@ export default function ComingSoonPage() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="jouw@email.nl"
+            placeholder={t('soon.placeholder', lang)}
             className="flex-1 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
           />
           <button
@@ -81,23 +84,23 @@ export default function ComingSoonPage() {
             disabled={submitting}
             className="shrink-0 rounded-full bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-500/30 hover:bg-emerald-400 disabled:opacity-60"
           >
-            {submitting ? 'Bezig...' : 'Schrijf me in'}
+            {submitting ? t('soon.submitting', lang) : t('soon.submit', lang)}
           </button>
         </form>
 
         {status === 'success' && (
           <p className="mt-4 text-sm text-emerald-600">
-            Bedankt! We houden je op de hoogte.
+            {t('soon.success', lang)}
           </p>
         )}
         {status === 'exists' && (
           <p className="mt-4 text-sm text-amber-600">
-            Je staat al op de lijst!
+            {t('soon.exists', lang)}
           </p>
         )}
         {status === 'error' && (
           <p className="mt-4 text-sm text-rose-600">
-            Er ging iets mis. Probeer het later opnieuw.
+            {t('soon.error', lang)}
           </p>
         )}
 
@@ -108,7 +111,7 @@ export default function ComingSoonPage() {
           href="/login"
           className="mt-4 inline-block text-xs text-slate-400 underline hover:text-slate-600"
         >
-          Team login
+          {t('soon.teamLogin', lang)}
         </a>
       </div>
     </div>

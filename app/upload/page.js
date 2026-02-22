@@ -2,10 +2,13 @@
 
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { useLanguage } from '@/lib/LanguageContext';
+import { t } from '@/lib/translations';
 import supabase from '@/lib/supabase';
 import { calculateServiceFee, calculateBuyerTotal, formatPrice } from '@/lib/fees';
 
 export default function UploadPage() {
+  const { lang } = useLanguage();
   const router = useRouter();
   const fileInputRef = useRef(null);
 
@@ -107,11 +110,11 @@ export default function UploadPage() {
 
   const handleAddEvent = async () => {
     if (!newEventName.trim()) {
-      setErrorMessage('Vul een eventnaam in.');
+      setErrorMessage(t('upload.errName', lang));
       return;
     }
     if (!newEventDate) {
-      setErrorMessage('Vul een datum in voor het event.');
+      setErrorMessage(t('upload.errDate', lang));
       return;
     }
 
@@ -268,12 +271,12 @@ export default function UploadPage() {
       askPrice,
     });
     if (!ticketId) {
-      setErrorMessage('Upload eerst een ticket voordat je een vraagprijs opslaat.');
+      setErrorMessage(t('upload.errNoTicket', lang));
       return;
     }
 
     if (!askPrice) {
-      setErrorMessage('Vul een vraagprijs in.');
+      setErrorMessage(t('upload.errNoPrice', lang));
       return;
     }
 
@@ -282,7 +285,7 @@ export default function UploadPage() {
     );
 
     if (!Number.isFinite(numericPrice) || numericPrice <= 0) {
-      setErrorMessage('Vul een geldige vraagprijs in.');
+      setErrorMessage(t('upload.errInvalidPrice', lang));
       return;
     }
 
@@ -299,9 +302,7 @@ export default function UploadPage() {
         throw updateError;
       }
 
-      setSuccessMessage(
-        'Je vraagprijs is opgeslagen en je ticket staat nu op de markt.'
-      );
+      setSuccessMessage(t('upload.savedToListed', lang));
       console.log('ask_price update succeeded for ticket', {
         ticketId,
         askPrice: numericPrice,
@@ -419,21 +420,21 @@ export default function UploadPage() {
           {showAddEvent && !selectedEvent && (
             <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-4">
               <h3 className="mb-3 text-xs font-semibold text-slate-900">
-                Nieuw event toevoegen
+                {t('upload.addEventTitle', lang)}
               </h3>
               <div className="grid gap-3 text-sm sm:grid-cols-3">
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-slate-700">Naam</label>
+                  <label className="text-xs font-medium text-slate-700">{t('upload.name', lang)}</label>
                   <input
                     type="text"
                     value={newEventName}
                     onChange={(e) => setNewEventName(e.target.value)}
-                    placeholder="Bijv. Awakenings Festival"
+                    placeholder={t('upload.namePlaceholder', lang)}
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-slate-700">Datum</label>
+                  <label className="text-xs font-medium text-slate-700">{t('upload.date', lang)}</label>
                   <input
                     type="date"
                     value={newEventDate}
@@ -442,12 +443,12 @@ export default function UploadPage() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-slate-700">Locatie (optioneel)</label>
+                  <label className="text-xs font-medium text-slate-700">{t('upload.locationOptional', lang)}</label>
                   <input
                     type="text"
                     value={newEventVenue}
                     onChange={(e) => setNewEventVenue(e.target.value)}
-                    placeholder="Bijv. Spaarnwoude"
+                    placeholder={t('upload.locationPlaceholder', lang)}
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
                   />
                 </div>
@@ -458,7 +459,7 @@ export default function UploadPage() {
                   onClick={() => setShowAddEvent(false)}
                   className="rounded-full border border-slate-200 bg-white px-4 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
                 >
-                  Annuleren
+                  {t('upload.cancel', lang)}
                 </button>
                 <button
                   type="button"
@@ -466,7 +467,7 @@ export default function UploadPage() {
                   disabled={addingEvent}
                   className="rounded-full bg-sky-500 px-4 py-1.5 text-xs font-semibold text-white shadow-sm shadow-sky-500/30 hover:bg-sky-400 disabled:opacity-60"
                 >
-                  {addingEvent ? 'Bezig...' : 'Event toevoegen'}
+                  {addingEvent ? t('upload.saving', lang) : t('upload.addEventBtn', lang)}
                 </button>
               </div>
             </div>
@@ -502,10 +503,10 @@ export default function UploadPage() {
             </div>
             <div>
               <p className="text-sm font-medium text-slate-900">
-                Sleep je PDF hierheen
+                {t('upload.dropzone', lang)}
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                of klik om een bestand te kiezen vanaf je apparaat.
+                {t('upload.dropzoneSub', lang)}
               </p>
             </div>
             <div className="mt-4">
@@ -514,7 +515,7 @@ export default function UploadPage() {
                 onClick={handleChooseFileClick}
                 className="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-medium text-slate-700 hover:border-slate-400 hover:bg-slate-50"
               >
-                Bestand kiezen
+                {t('upload.chooseFile', lang)}
               </button>
               <input
                 ref={fileInputRef}
@@ -525,7 +526,7 @@ export default function UploadPage() {
               />
             </div>
             <p className="mt-3 text-[11px] text-slate-400">
-              Alleen PDF-bestanden, maximaal 10 MB.
+              {t('upload.fileLimit', lang)}
             </p>
           </div>
         </section>
@@ -533,12 +534,10 @@ export default function UploadPage() {
         {/* Preview sectie */}
         <section className="mt-8 space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-100">
           <h2 className="text-sm font-semibold text-slate-900">
-            Voorbeeld van geselecteerd ticket
+            {t('upload.preview', lang)}
           </h2>
           <p className="text-xs text-slate-500">
-            {fileName
-              ? 'Je hebt het volgende bestand geselecteerd:'
-              : 'Nog geen bestand geselecteerd. Kies een PDF hierboven om de bestandsnaam hier te zien.'}
+            {fileName ? t('upload.previewSub', lang) : t('upload.noFile', lang)}
           </p>
           <div className="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500">
             {fileName || 'bestandsnaam.pdf'}
@@ -552,7 +551,7 @@ export default function UploadPage() {
             disabled={uploading}
             className="rounded-full bg-emerald-500 px-6 py-2.5 text-sm font-semibold text-white shadow-sm shadow-emerald-500/30 hover:bg-emerald-400 disabled:opacity-60"
           >
-            {uploading ? 'Bezig met analyseren...' : 'Ticket analyseren'}
+            {uploading ? t('upload.analyzing', lang) : t('upload.analyzeBtn', lang)}
           </button>
         </div>
 
@@ -560,10 +559,10 @@ export default function UploadPage() {
         {ticketId && (
           <section className="mt-8 space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-100">
             <h2 className="text-sm font-semibold text-slate-900">
-              Stel je vraagprijs in
+              {t('upload.setPrice', lang)}
             </h2>
             <p className="text-xs text-slate-500">
-              Vul de prijs in waarvoor je je ticket op de markt wilt zetten.
+              {t('upload.setPriceSub', lang)}
             </p>
             <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
               <div className="relative w-full max-w-xs">
@@ -575,7 +574,7 @@ export default function UploadPage() {
                   inputMode="decimal"
                   value={askPrice}
                   onChange={(e) => setAskPrice(e.target.value)}
-                  placeholder="Bijv. 75"
+                  placeholder={t('upload.pricePlaceholder', lang)}
                   className="w-full rounded-full border border-slate-200 bg-white py-2 pl-7 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
                 />
               </div>
@@ -585,13 +584,11 @@ export default function UploadPage() {
                 disabled={savingAskPrice}
                 className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-5 py-2 text-sm font-semibold text-white shadow-sm shadow-emerald-500/30 hover:bg-emerald-400 disabled:opacity-60"
               >
-                {savingAskPrice
-                  ? 'Bezig met opslaan...'
-                  : 'Opslaan en op de markt zetten'}
+                {savingAskPrice ? t('upload.savingPrice', lang) : t('upload.saveBtn', lang)}
               </button>
             </div>
 
-            <BuyerPreview askPrice={askPrice} />
+            <BuyerPreview askPrice={askPrice} lang={lang} />
           </section>
         )}
       </main>
@@ -599,7 +596,7 @@ export default function UploadPage() {
   );
 }
 
-function BuyerPreview({ askPrice }) {
+function BuyerPreview({ askPrice, lang }) {
   const numericPrice = Number(
     String(askPrice || '').replace(',', '.').replace(/[^0-9.]/g, '')
   );
@@ -613,22 +610,22 @@ function BuyerPreview({ askPrice }) {
   return (
     <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
       <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-400">
-        Preview: dit betaalt de koper
+        {t('upload.buyerPreview', lang)}
       </p>
       <div className="flex justify-between">
-        <span>Ticketprijs</span>
+        <span>{t('upload.ticketPrice', lang)}</span>
         <span className="font-medium text-slate-900">€ {formatPrice(numericPrice)}</span>
       </div>
       <div className="flex justify-between">
-        <span>Servicekosten (€ 1,00 + 1,5%)</span>
+        <span>{t('upload.serviceFees', lang)}</span>
         <span className="font-medium text-slate-900">€ {formatPrice(fee)}</span>
       </div>
       <div className="mt-2 flex justify-between border-t border-slate-200 pt-2">
-        <span className="font-semibold text-slate-900">Totaal voor koper</span>
+        <span className="font-semibold text-slate-900">{t('upload.totalBuyer', lang)}</span>
         <span className="font-semibold text-emerald-700">€ {formatPrice(total)}</span>
       </div>
       <p className="mt-2 text-[11px] text-slate-400">
-        Je ontvangt als verkoper het volledige bedrag van € {formatPrice(numericPrice)}. De servicekosten zijn voor de koper.
+        {t('upload.sellerReceives', lang)} € {formatPrice(numericPrice)}{t('upload.sellerReceivesSuffix', lang)}
       </p>
     </div>
   );

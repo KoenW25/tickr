@@ -2,10 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useLanguage } from '@/lib/LanguageContext';
+import { t } from '@/lib/translations';
 import supabase from '@/lib/supabase';
 import { calculateServiceFee, calculateBuyerTotal, formatPrice } from '@/lib/fees';
 
 export default function CheckoutPage() {
+  const { lang } = useLanguage();
   const { id } = useParams();
   const router = useRouter();
 
@@ -36,17 +39,17 @@ export default function CheckoutPage() {
         if (ticketError) throw ticketError;
 
         if (!ticketData) {
-          setError('Ticket niet gevonden.');
+          setError(t('checkout.notFound', lang));
           return;
         }
 
         if (ticketData.status === 'reserved') {
           if (ticketData.reserved_until && new Date(ticketData.reserved_until) < new Date()) {
-            setError('De reservering voor dit ticket is verlopen.');
+            setError(t('checkout.expired', lang));
             return;
           }
           if (ticketData.reserved_for !== authData.user.id) {
-            setError('Dit ticket is gereserveerd voor een andere koper.');
+            setError(t('checkout.otherBuyer', lang));
             return;
           }
 
@@ -62,7 +65,7 @@ export default function CheckoutPage() {
 
           setAcceptedBid(bidData ?? null);
         } else if (ticketData.status !== 'available') {
-          setError('Dit ticket is niet meer beschikbaar.');
+          setError(t('checkout.unavailable', lang));
           return;
         }
 
@@ -75,7 +78,7 @@ export default function CheckoutPage() {
         setTicket(ticketData);
       } catch (err) {
         console.error('Error loading checkout:', err);
-        setError('Er ging iets mis bij het laden van de checkout.');
+        setError(t('checkout.loadError', lang));
       } finally {
         setLoading(false);
       }
@@ -90,8 +93,8 @@ export default function CheckoutPage() {
     function update() {
       const diff = new Date(ticket.reserved_until) - Date.now();
       if (diff <= 0) {
-        setTimeLeft('Verlopen');
-        setError('De reservering is verlopen. Je kunt dit ticket niet meer kopen.');
+        setTimeLeft(t('checkout.expiredLabel', lang));
+        setError(t('checkout.expiredMsg', lang));
         return;
       }
       const h = Math.floor(diff / 3600000);
@@ -103,7 +106,7 @@ export default function CheckoutPage() {
     update();
     const interval = setInterval(update, 1000);
     return () => clearInterval(interval);
-  }, [ticket]);
+  }, [ticket, lang]);
 
   const isReservedForMe = ticket?.status === 'reserved' && ticket?.reserved_for === user?.id;
   const effectivePrice = isReservedForMe && acceptedBid ? Number(acceptedBid.bid_price) : Number(ticket?.ask_price);
@@ -137,13 +140,13 @@ export default function CheckoutPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Betaling kon niet worden gestart.');
+        throw new Error(data.error || t('checkout.payError', lang));
       }
 
       window.location.href = data.checkoutUrl;
     } catch (err) {
       console.error('Payment error:', err);
-      setError(err.message || 'Er ging iets mis bij het starten van de betaling.');
+      setError(err.message || t('checkout.payGenericError', lang));
       setPaying(false);
     }
   };
@@ -151,7 +154,7 @@ export default function CheckoutPage() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-900">
-        <p className="text-sm text-slate-500">Bezig met laden...</p>
+        <p className="text-sm text-slate-500">{t('checkout.loading', lang)}</p>
       </div>
     );
   }
@@ -168,17 +171,17 @@ export default function CheckoutPage() {
 
   const fee = calculateServiceFee(effectivePrice);
   const total = calculateBuyerTotal(effectivePrice);
-  const isExpired = timeLeft === 'Verlopen';
+  const isExpired = timeLeft === t('checkout.expiredLabel', lang);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <main className="mx-auto max-w-lg px-4 py-10 sm:px-6">
         <header className="mb-8">
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-            Checkout
+            {t('checkout.title', lang)}
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            Controleer je bestelling en ga verder met betalen.
+            {t('checkout.subtitle', lang)}
           </p>
         </header>
 
@@ -190,13 +193,13 @@ export default function CheckoutPage() {
 
         {isReservedForMe && !isExpired && (
           <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-700">
-            Je bod is geaccepteerd! Betaal binnen <span className="font-semibold">{timeLeft}</span> om je ticket veilig te stellen.
+            {t('checkout.bidAccepted', lang)} <span className="font-semibold">{timeLeft}</span> {t('checkout.bidAcceptedSuffix', lang)}
           </div>
         )}
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-100">
           <h2 className="mb-4 text-sm font-semibold text-slate-900">
-            Overzicht
+            {t('checkout.overview', lang)}
           </h2>
 
           {ticket.event_name && (
@@ -222,7 +225,7 @@ export default function CheckoutPage() {
           <div className="space-y-3 text-sm">
             <div className="flex justify-between">
               <span className="text-slate-600">
-                {isReservedForMe ? 'Geaccepteerd bod' : 'Ticketprijs'}
+                {isReservedForMe ? t('checkout.acceptedBid', lang) : t('checkout.ticketPrice', lang)}
               </span>
               <span className="font-medium text-slate-900">
                 € {formatPrice(effectivePrice)}
@@ -230,10 +233,7 @@ export default function CheckoutPage() {
             </div>
             <div className="flex justify-between">
               <span className="text-slate-600">
-                Servicekosten
-                <span className="ml-1 text-[11px] text-slate-400">
-                  (€ 1,00 + 1,5%)
-                </span>
+                {t('checkout.serviceFees', lang)}
               </span>
               <span className="font-medium text-slate-900">
                 € {formatPrice(fee)}
@@ -241,7 +241,7 @@ export default function CheckoutPage() {
             </div>
             <div className="border-t border-slate-100 pt-3">
               <div className="flex justify-between">
-                <span className="font-semibold text-slate-900">Totaal</span>
+                <span className="font-semibold text-slate-900">{t('checkout.total', lang)}</span>
                 <span className="text-lg font-semibold text-emerald-700">
                   € {formatPrice(total)}
                 </span>
@@ -250,7 +250,7 @@ export default function CheckoutPage() {
           </div>
 
           <p className="mt-4 text-[11px] text-slate-400">
-            De verkoper ontvangt € {formatPrice(effectivePrice)}. De servicekosten van € {formatPrice(fee)} zijn voor rekening van de koper.
+            {t('checkout.sellerReceives', lang)} € {formatPrice(effectivePrice)}. {t('checkout.buyerPays', lang)} € {formatPrice(fee)} {t('checkout.buyerPaysSuffix', lang)}
           </p>
         </section>
 
@@ -262,10 +262,10 @@ export default function CheckoutPage() {
             className="w-full rounded-full bg-emerald-500 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-emerald-500/30 transition hover:bg-emerald-400 disabled:opacity-60"
           >
             {paying
-              ? 'Bezig met verwerken...'
+              ? t('checkout.processing', lang)
               : isExpired
-                ? 'Reservering verlopen'
-                : `Betaal € ${formatPrice(total)}`}
+                ? t('checkout.reservationExpired', lang)
+                : `${t('checkout.payBtn', lang)} € ${formatPrice(total)}`}
           </button>
         </div>
       </main>

@@ -1,11 +1,14 @@
 'use client';
 
+import { useLanguage } from '@/lib/LanguageContext';
+import { t } from '@/lib/translations';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import supabase from '@/lib/supabase';
 import { calculateBuyerTotal, formatPrice } from '@/lib/fees';
 
 export default function MarktPage() {
+  const { lang } = useLanguage();
   const [eventCards, setEventCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -103,8 +106,8 @@ export default function MarktPage() {
 
       setEventCards(cards);
     } catch (err) {
-      console.error('Error loading market:', err);
-      setError('Er ging iets mis bij het ophalen van de marktdata.');
+      console.error(t('market.fetchError', lang), err);
+      setError(t('market.fetchError', lang));
     } finally {
       setLoading(false);
     }
@@ -162,10 +165,10 @@ export default function MarktPage() {
       <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
         <div className="mb-6">
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-            Markt voor live tickets
+            {t('market.title', lang)}
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            Zoek naar events en bekijk het actuele bod en laat.
+            {t('market.subtitle', lang)}
           </p>
         </div>
 
@@ -180,7 +183,7 @@ export default function MarktPage() {
                 setSearch(e.target.value);
                 setShowAddEvent(false);
               }}
-              placeholder="Zoek naar een artiest, festival of locatie..."
+              placeholder={t('market.searchPlaceholder', lang)}
               className="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
             />
           </div>
@@ -188,7 +191,7 @@ export default function MarktPage() {
           {showNoResults && !showAddEvent && (
             <div className="absolute z-20 mt-2 w-full rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
               <p className="mb-3 text-center text-xs text-slate-400">
-                Geen events gevonden voor "{search}"
+                {t('market.noResults', lang)} "{search}"
               </p>
               <button
                 type="button"
@@ -198,7 +201,7 @@ export default function MarktPage() {
                 }}
                 className="w-full rounded-full bg-sky-500 px-4 py-2 text-xs font-semibold text-white shadow-sm shadow-sky-500/30 hover:bg-sky-400"
               >
-                + Event toevoegen
+                {t('market.addEvent', lang)}
               </button>
             </div>
           )}
@@ -206,21 +209,21 @@ export default function MarktPage() {
           {showAddEvent && (
             <div className="absolute z-20 mt-2 w-full rounded-2xl border border-slate-200 bg-white p-5 shadow-lg">
               <h3 className="mb-3 text-sm font-semibold text-slate-900">
-                Nieuw event toevoegen
+                {t('market.addEventTitle', lang)}
               </h3>
               <div className="grid gap-3 sm:grid-cols-3">
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-slate-700">Naam</label>
+                  <label className="text-xs font-medium text-slate-700">{t('market.name', lang)}</label>
                   <input
                     type="text"
                     value={newEventName}
                     onChange={(e) => setNewEventName(e.target.value)}
-                    placeholder="Bijv. Awakenings Festival"
+                    placeholder={t('market.namePlaceholder', lang)}
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-slate-700">Datum</label>
+                  <label className="text-xs font-medium text-slate-700">{t('market.date', lang)}</label>
                   <input
                     type="date"
                     value={newEventDate}
@@ -229,12 +232,12 @@ export default function MarktPage() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-slate-700">Locatie</label>
+                  <label className="text-xs font-medium text-slate-700">{t('market.location', lang)}</label>
                   <input
                     type="text"
                     value={newEventVenue}
                     onChange={(e) => setNewEventVenue(e.target.value)}
-                    placeholder="Bijv. Spaarnwoude"
+                    placeholder={t('market.locationPlaceholder', lang)}
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
                   />
                 </div>
@@ -245,7 +248,7 @@ export default function MarktPage() {
                   onClick={() => setShowAddEvent(false)}
                   className="rounded-full border border-slate-200 bg-white px-4 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
                 >
-                  Annuleren
+                  {t('market.cancel', lang)}
                 </button>
                 <button
                   type="button"
@@ -253,25 +256,25 @@ export default function MarktPage() {
                   disabled={addingEvent || !newEventName.trim()}
                   className="rounded-full bg-sky-500 px-4 py-1.5 text-xs font-semibold text-white shadow-sm shadow-sky-500/30 hover:bg-sky-400 disabled:opacity-60"
                 >
-                  {addingEvent ? 'Bezig...' : 'Event toevoegen'}
+                  {addingEvent ? t('market.saving', lang) : t('market.addEventBtn', lang)}
                 </button>
               </div>
             </div>
           )}
         </div>
 
-        {loading && <p className="text-center text-slate-500">Laden...</p>}
+        {loading && <p className="text-center text-slate-500">{t('market.loading', lang)}</p>}
         {error && <p className="text-center text-rose-600">{error}</p>}
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filtered.map((ev) => (
-            <EventCard key={ev.id} event={ev} />
+            <EventCard key={ev.id} event={ev} lang={lang} />
           ))}
         </section>
 
         {!loading && !search.trim() && eventCards.length === 0 && (
           <p className="mt-6 text-center text-sm text-slate-500">
-            Er zijn nog geen events. Voeg een event toe via de zoekbalk.
+            {t('market.empty', lang)}
           </p>
         )}
       </main>
@@ -279,7 +282,7 @@ export default function MarktPage() {
   );
 }
 
-function EventCard({ event }) {
+function EventCard({ event, lang }) {
   const formattedDate = event.date
     ? new Date(event.date).toLocaleDateString('nl-NL', {
         day: 'numeric',
@@ -304,30 +307,30 @@ function EventCard({ event }) {
 
         <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
           <div className="rounded-xl bg-rose-50 p-3 ring-1 ring-rose-100">
-            <p className="uppercase tracking-[0.18em] text-rose-600">Laat</p>
+            <p className="uppercase tracking-[0.18em] text-rose-600">{t('market.ask', lang)}</p>
             <p className="mt-1 text-sm font-semibold text-rose-700">
               {event.lowestAsk != null ? `€ ${formatPrice(event.lowestAsk)}` : '—'}
             </p>
             <p className="mt-0.5 text-[10px] text-rose-400">
-              {hasTickets ? 'laagste vraagprijs' : 'geen aanbod'}
+              {hasTickets ? t('market.lowestAsk', lang) : t('market.noSupply', lang)}
             </p>
           </div>
           <div className="rounded-xl bg-sky-50 p-3 ring-1 ring-sky-100">
-            <p className="uppercase tracking-[0.18em] text-sky-600">Bod</p>
+            <p className="uppercase tracking-[0.18em] text-sky-600">{t('market.bid', lang)}</p>
             <p className="mt-1 text-sm font-semibold text-sky-700">
               {event.highestBid != null ? `€ ${formatPrice(event.highestBid)}` : '—'}
             </p>
             <p className="mt-0.5 text-[10px] text-sky-400">
               {event.bidCount > 0
                 ? `${event.bidCount} bod${event.bidCount !== 1 ? 'en' : ''}`
-                : 'geen biedingen'}
+                : t('market.noBids', lang)}
             </p>
           </div>
         </div>
 
         {hasTickets && (
           <div className="mt-3 flex items-center justify-between rounded-xl bg-emerald-50 px-3 py-2 ring-1 ring-emerald-100 text-xs">
-            <span className="text-emerald-600">Kopen vanaf incl. kosten</span>
+            <span className="text-emerald-600">{t('market.buyFrom', lang)} {t('market.inclFees', lang)}</span>
             <span className="font-semibold text-emerald-700">
               € {formatPrice(calculateBuyerTotal(event.lowestAsk))}
             </span>
@@ -337,11 +340,11 @@ function EventCard({ event }) {
         <div className="mt-3 flex items-center justify-between text-[10px]">
           <span className="text-slate-400">
             {hasTickets
-              ? `${event.ticketCount} ticket${event.ticketCount !== 1 ? 's' : ''} beschikbaar`
-              : 'Nog geen tickets'}
+              ? `${event.ticketCount} ticket${event.ticketCount !== 1 ? 's' : ''} ${t('market.ticketsAvailable', lang)}`
+              : t('market.noTickets', lang)}
           </span>
           <span className="font-medium uppercase tracking-[0.18em] text-slate-400">
-            Bekijk orderboek →
+            {t('market.viewOrderbook', lang)}
           </span>
         </div>
       </article>

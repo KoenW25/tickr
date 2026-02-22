@@ -3,9 +3,12 @@
 import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useLanguage } from '@/lib/LanguageContext';
+import { t } from '@/lib/translations';
 import supabase from '@/lib/supabase';
 
 function LoginContent() {
+  const { lang } = useLanguage();
   const router = useRouter();
   const searchParams = useSearchParams();
   const isDevMode = searchParams.get('dev') === 'true';
@@ -46,7 +49,7 @@ function LoginContent() {
       router.push('/dashboard');
     } catch (err) {
       console.error('Dev login error:', err);
-      setDevError(err.message || 'Login mislukt.');
+      setDevError(err.message || t('login.failed', lang));
     } finally {
       setDevLoading(false);
     }
@@ -79,10 +82,10 @@ function LoginContent() {
             <span>Tickr</span>
           </div>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            De eerlijke markt voor live tickets.
+            {t('login.heroTitle', lang)}
           </h1>
           <p className="mt-3 text-sm text-slate-300">
-            Log in en beheer je tickets, orders en uitbetalingen op één plek.
+            {t('login.heroSub', lang)}
           </p>
 
           <ul className="mt-6 space-y-3 text-sm">
@@ -90,19 +93,19 @@ function LoginContent() {
               <span className="mt-0.5 h-5 w-5 rounded-full bg-emerald-500/20 text-center text-xs text-emerald-300">
                 ✓
               </span>
-              <span>Bescherming tegen fraude bij elke transactie.</span>
+              <span>{t('login.feature1', lang)}</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="mt-0.5 h-5 w-5 rounded-full bg-sky-500/20 text-center text-xs text-sky-200">
                 ✓
               </span>
-              <span>Transparante prijzen met een open orderboek.</span>
+              <span>{t('login.feature2', lang)}</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="mt-0.5 h-5 w-5 rounded-full bg-emerald-500/20 text-center text-xs text-emerald-300">
                 ✓
               </span>
-              <span>Snelle uitbetaling na het event op je IBAN.</span>
+              <span>{t('login.feature3', lang)}</span>
             </li>
           </ul>
         </section>
@@ -110,10 +113,10 @@ function LoginContent() {
         {/* Rechter: login formulier */}
         <section className="flex-1 rounded-3xl border border-slate-200 bg-white px-6 py-8 shadow-md shadow-slate-200/60 sm:px-8">
           <h2 className="text-lg font-semibold text-slate-900">
-            Log in op Tickr
+            {t('login.title', lang)}
           </h2>
           <p className="mt-1 text-sm text-slate-600">
-            Gebruik je favoriete account of ontvang een magic link per e-mail.
+            {t('login.subtitle', lang)}
           </p>
 
           <div className="mt-6 space-y-3">
@@ -123,29 +126,29 @@ function LoginContent() {
               className="flex w-full items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-800 hover:border-slate-300 hover:bg-slate-50"
             >
               <span className="text-lg">G</span>
-              <span>Inloggen met Google</span>
+              <span>{t('login.google', lang)}</span>
             </button>
             <button className="flex w-full items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-800 hover:border-slate-300 hover:bg-slate-50">
               <span className="text-lg">Ⓜ</span>
-              <span>Inloggen met Meta</span>
+              <span>{t('login.meta', lang)}</span>
             </button>
           </div>
 
           {/* Divider */}
           <div className="my-6 flex items-center gap-3 text-xs text-slate-400">
             <div className="h-px flex-1 bg-slate-200" />
-            <span>of met e-mail</span>
+            <span>{t('login.orEmail', lang)}</span>
             <div className="h-px flex-1 bg-slate-200" />
           </div>
 
           <form className="space-y-4 text-sm" onSubmit={handleSubmit}>
             <div className="space-y-1">
               <label className="text-xs font-medium text-slate-700">
-                E-mailadres
+                {t('login.email', lang)}
               </label>
               <input
                 type="email"
-                placeholder="jij@example.com"
+                placeholder={t('login.emailPlaceholder', lang)}
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
               />
             </div>
@@ -154,17 +157,17 @@ function LoginContent() {
               type="submit"
               className="mt-2 w-full rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-emerald-500/30 hover:bg-emerald-400"
             >
-              Magic link versturen
+              {t('login.magicLink', lang)}
             </button>
 
             <p className="mt-3 text-xs text-slate-500">
-              Door in te loggen ga je akkoord met onze{' '}
+              {t('login.terms', lang)}{' '}
               <Link href="/voorwaarden" className="text-sky-600 hover:underline">
-                voorwaarden
+                {t('login.termsLink', lang)}
               </Link>{' '}
-              en{' '}
+              {t('login.and', lang)}{' '}
               <Link href="/privacy" className="text-sky-600 hover:underline">
-                privacyverklaring
+                {t('login.privacyLink', lang)}
               </Link>
               .
             </p>
@@ -186,7 +189,7 @@ function LoginContent() {
                 )}
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-slate-700">
-                    E-mail
+                    {t('login.devEmail', lang)}
                   </label>
                   <input
                     type="email"
@@ -199,13 +202,13 @@ function LoginContent() {
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-slate-700">
-                    Wachtwoord
+                    {t('login.devPassword', lang)}
                   </label>
                   <input
                     type="password"
                     value={devPassword}
                     onChange={(e) => setDevPassword(e.target.value)}
-                    placeholder="Minimaal 6 tekens"
+                    placeholder={t('login.devPasswordPlaceholder', lang)}
                     required
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
                   />
@@ -215,7 +218,7 @@ function LoginContent() {
                   disabled={devLoading}
                   className="mt-2 w-full rounded-full bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-amber-500/30 hover:bg-amber-400 disabled:opacity-60"
                 >
-                  {devLoading ? 'Bezig...' : 'Dev login / registreer'}
+                  {devLoading ? t('login.devSubmitting', lang) : t('login.devSubmit', lang)}
                 </button>
               </form>
             </>

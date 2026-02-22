@@ -1,17 +1,20 @@
 'use client';
 
 import Link from 'next/link';
+import { useLanguage } from '@/lib/LanguageContext';
+import { t } from '@/lib/translations';
 
 export default function PrivacyPage() {
+  const { lang } = useLanguage();
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
         <header className="mb-6">
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-            Privacybeleid Tickr (AVG / GDPR)
+            {t('privacy.title', lang)}
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            Dit is placeholder tekst voor het privacybeleid van Tickr. Gebruik dit als tijdelijke invulling tot het definitieve beleid door juristen is opgesteld.
+            {t('privacy.intro', lang)}
           </p>
         </header>
 

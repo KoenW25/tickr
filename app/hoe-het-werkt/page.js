@@ -1,40 +1,27 @@
 'use client';
 
 import Link from 'next/link';
+import { useLanguage } from '@/lib/LanguageContext';
+import { t } from '@/lib/translations';
 
-const faqs = [
-  {
-    question: 'Hoe controleert Tickr of een ticket echt is?',
-    answer:
-      'We analyseren de PDF op echtheidskenmerken en controleren waar mogelijk bij de officiële ticketprovider.',
-  },
-  {
-    question: 'Wanneer wordt mijn geld uitbetaald?',
-    answer:
-      'Uitbetaling vindt in de meeste gevallen binnen enkele werkdagen na het event plaats, zodra het ticket is gebruikt.',
-  },
-  {
-    question: 'Wat als een koper mijn ticket niet kan gebruiken?',
-    answer:
-      'We hebben een beschermingsregeling voor zowel koper als verkoper. In twijfelgevallen bekijkt ons supportteam de situatie.',
-  },
-  {
-    question: 'Welke kosten rekent Tickr?',
-    answer:
-      'We rekenen een transparante servicefee per transactie. De exacte kosten zie je altijd vóórdat je een order bevestigt.',
-  },
+const faqKeys = [
+  { q: 'how.faq1Q', a: 'how.faq1A' },
+  { q: 'how.faq2Q', a: 'how.faq2A' },
+  { q: 'how.faq3Q', a: 'how.faq3A' },
+  { q: 'how.faq4Q', a: 'how.faq4A' },
 ];
 
 export default function HoeHetWerktPage() {
+  const { lang } = useLanguage();
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
         <header className="mb-10 max-w-2xl">
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-            Hoe Tickr werkt
+            {t('how.title', lang)}
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            In drie stappen van ticket naar uitbetaling. Ontworpen om eerlijk en transparant te zijn voor iedereen.
+            {t('how.subtitle', lang)}
           </p>
         </header>
 
@@ -45,10 +32,10 @@ export default function HoeHetWerktPage() {
               1
             </span>
             <h2 className="text-sm font-semibold text-slate-900">
-              Upload je ticket
+              {t('how.step1Title', lang)}
             </h2>
             <p className="mt-2 text-xs text-slate-600">
-              Sleep een PDF van je ticket naar Tickr. We lezen alleen de gegevens die nodig zijn om je ticket te verifiëren.
+              {t('how.step1Desc', lang)}
             </p>
           </article>
 
@@ -57,10 +44,10 @@ export default function HoeHetWerktPage() {
               2
             </span>
             <h2 className="text-sm font-semibold text-slate-900">
-              Stel je prijs in
+              {t('how.step2Title', lang)}
             </h2>
             <p className="mt-2 text-xs text-slate-600">
-              Kies of je direct wilt verkopen of een limietorder plaatst. Je ziet realtime waar andere kopers en verkopers zitten.
+              {t('how.step2Desc', lang)}
             </p>
           </article>
 
@@ -69,10 +56,10 @@ export default function HoeHetWerktPage() {
               3
             </span>
             <h2 className="text-sm font-semibold text-slate-900">
-              Ontvang je geld
+              {t('how.step3Title', lang)}
             </h2>
             <p className="mt-2 text-xs text-slate-600">
-              Zodra je ticket veilig is overgedragen en gebruikt, storten we de opbrengst op je IBAN. Eerlijk en transparant.
+              {t('how.step3Desc', lang)}
             </p>
           </article>
         </section>
@@ -80,16 +67,16 @@ export default function HoeHetWerktPage() {
         {/* FAQ */}
         <section className="mb-4">
           <h2 className="mb-4 text-sm font-semibold text-slate-900">
-            Veelgestelde vragen
+            {t('how.faqTitle', lang)}
           </h2>
           <div className="space-y-3">
-            {faqs.map((faq) => (
+            {faqKeys.map((faq) => (
               <details
-                key={faq.question}
+                key={faq.q}
                 className="group rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm shadow-slate-100"
               >
                 <summary className="flex cursor-pointer list-none items-center justify-between text-slate-900">
-                  <span className="text-sm font-medium">{faq.question}</span>
+                  <span className="text-sm font-medium">{t(faq.q, lang)}</span>
                   <span className="ml-4 text-xs text-slate-400 group-open:hidden">
                     +
                   </span>
@@ -97,7 +84,7 @@ export default function HoeHetWerktPage() {
                     –
                   </span>
                 </summary>
-                <p className="mt-2 text-xs text-slate-600">{faq.answer}</p>
+                <p className="mt-2 text-xs text-slate-600">{t(faq.a, lang)}</p>
               </details>
             ))}
           </div>
