@@ -358,13 +358,12 @@ export default function DashboardPage() {
     }
   };
 
-  const [downloadError, setDownloadError] = useState(null);
-
   const handleDownloadTicket = async (pdfUrl) => {
-    setDownloadError(null);
+    const newTab = window.open('', '_blank');
+
     const filePath = extractStoragePathFromUrl(pdfUrl);
     if (!filePath) {
-      setDownloadError('Geen bestand gevonden.');
+      if (newTab) newTab.location.href = pdfUrl;
       return;
     }
 
@@ -373,13 +372,14 @@ export default function DashboardPage() {
         .from('tickets')
         .createSignedUrl(filePath, 60);
 
-      if (error) throw error;
-      if (!data?.signedUrl) throw new Error('Geen signed URL ontvangen');
+      if (error || !data?.signedUrl) throw error;
 
-      window.open(data.signedUrl, '_blank');
+      if (newTab) newTab.location.href = data.signedUrl;
+      else window.location.href = data.signedUrl;
     } catch (err) {
-      console.error('Download error:', err, '| filePath:', filePath, '| pdfUrl:', pdfUrl);
-      window.open(pdfUrl, '_blank');
+      console.error('Download error:', err, '| filePath:', filePath);
+      if (newTab) newTab.location.href = pdfUrl;
+      else window.location.href = pdfUrl;
     }
   };
 
