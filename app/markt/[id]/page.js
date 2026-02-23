@@ -195,13 +195,13 @@ export default function EventDetailPage() {
         </Link>
 
         <header className="mb-8">
-          <div className="flex items-center gap-3">
+          <div className="flex items-start justify-between gap-3">
             <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
               {event.name}
             </h1>
             <Link
               href={`/upload?eventId=${eventId}`}
-              className="rounded-full bg-emerald-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-emerald-500/30 transition hover:bg-emerald-400"
+              className="shrink-0 rounded-full bg-emerald-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-emerald-500/30 transition hover:bg-emerald-400"
             >
               {t('nav.sell', lang)}
             </Link>
