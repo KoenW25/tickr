@@ -319,6 +319,17 @@ export default function EventDetailPage() {
           </div>
         </section>
 
+        {/* Ticket verkopen */}
+        <section className="mb-8">
+          <Link
+            href={`/upload?eventId=${eventId}`}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-100"
+          >
+            <span className="text-lg">+</span>
+            {t('event.sellTicket', lang)}
+          </Link>
+        </section>
+
         {/* Acties */}
         <div className="grid gap-4 sm:grid-cols-2">
           {/* Direct kopen */}

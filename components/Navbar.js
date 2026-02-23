@@ -111,12 +111,6 @@ export default function Navbar() {
             >
               {t('nav.market', lang)}
             </Link>
-            <Link
-              href="/hoe-het-werkt"
-              className="hidden rounded-full border border-slate-200 px-4 py-1.5 text-xs font-medium uppercase tracking-[0.18em] text-slate-600 hover:border-slate-300 hover:bg-slate-50 sm:inline-block"
-            >
-              {t('nav.howItWorks', lang)}
-            </Link>
 
             {!loading && !user && (
               <Link
@@ -130,16 +124,16 @@ export default function Navbar() {
             {!loading && user && (
               <div className="flex items-center gap-3">
                 <Link
-                  href="/dashboard"
-                  className="hidden rounded-full border border-slate-200 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 hover:border-slate-300 hover:bg-slate-50 sm:inline-block"
-                >
-                  {t('nav.dashboard', lang)}
-                </Link>
-                <Link
                   href="/upload"
                   className="hidden rounded-full bg-emerald-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-emerald-500/30 transition hover:bg-emerald-400 sm:inline-block"
                 >
                   {t('nav.sell', lang)}
+                </Link>
+                <Link
+                  href="/dashboard"
+                  className="hidden rounded-full border border-slate-200 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 hover:border-slate-300 hover:bg-slate-50 sm:inline-block"
+                >
+                  {t('nav.dashboard', lang)}
                 </Link>
                 <button
                   type="button"
@@ -148,15 +142,22 @@ export default function Navbar() {
                 >
                   {t('nav.logout', lang)}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setLang(lang === 'nl' ? 'en' : 'nl')}
-                  className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition"
-                >
-                  {lang === 'nl' ? 'EN' : 'NL'}
-                </button>
               </div>
             )}
+
+            <Link
+              href="/hoe-het-werkt"
+              className="hidden rounded-full border border-slate-200 px-4 py-1.5 text-xs font-medium uppercase tracking-[0.18em] text-slate-600 hover:border-slate-300 hover:bg-slate-50 sm:inline-block"
+            >
+              {t('nav.howItWorks', lang)}
+            </Link>
+            <button
+              type="button"
+              onClick={() => setLang(lang === 'nl' ? 'en' : 'nl')}
+              className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition"
+            >
+              {lang === 'nl' ? 'EN' : 'NL'}
+            </button>
           </div>
         </nav>
       </header>

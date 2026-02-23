@@ -13,14 +13,38 @@ function LoginContent() {
   const searchParams = useSearchParams();
   const isDevMode = searchParams.get('dev') === 'true';
 
+  const [magicEmail, setMagicEmail] = useState('');
+  const [magicLoading, setMagicLoading] = useState(false);
+  const [magicSent, setMagicSent] = useState(false);
+  const [magicError, setMagicError] = useState('');
+
   const [devEmail, setDevEmail] = useState('');
   const [devPassword, setDevPassword] = useState('');
   const [devError, setDevError] = useState('');
   const [devLoading, setDevLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleMagicLink = async (e) => {
     e.preventDefault();
-    router.push('/dashboard');
+    setMagicError('');
+    setMagicSent(false);
+    setMagicLoading(true);
+
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: magicEmail,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) throw error;
+      setMagicSent(true);
+    } catch (err) {
+      console.error('Magic link error:', err);
+      setMagicError(err.message || t('login.failed', lang));
+    } finally {
+      setMagicLoading(false);
+    }
   };
 
   const handleDevLogin = async (e) => {
@@ -156,24 +180,46 @@ function LoginContent() {
             <div className="h-px flex-1 bg-slate-200" />
           </div>
 
-          <form className="space-y-4 text-sm" onSubmit={handleSubmit}>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-slate-700">
-                {t('login.email', lang)}
-              </label>
-              <input
-                type="email"
-                placeholder={t('login.emailPlaceholder', lang)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
-              />
-            </div>
+          <form className="space-y-4 text-sm" onSubmit={handleMagicLink}>
+            {magicSent ? (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center">
+                <p className="text-sm font-medium text-emerald-800">
+                  {t('login.magicSentTitle', lang)}
+                </p>
+                <p className="mt-1 text-xs text-emerald-600">
+                  {t('login.magicSentDesc', lang)}
+                </p>
+              </div>
+            ) : (
+              <>
+                {magicError && (
+                  <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                    {magicError}
+                  </div>
+                )}
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-700">
+                    {t('login.email', lang)}
+                  </label>
+                  <input
+                    type="email"
+                    value={magicEmail}
+                    onChange={(e) => setMagicEmail(e.target.value)}
+                    placeholder={t('login.emailPlaceholder', lang)}
+                    required
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
+                  />
+                </div>
 
-            <button
-              type="submit"
-              className="mt-2 w-full rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-emerald-500/30 hover:bg-emerald-400"
-            >
-              {t('login.magicLink', lang)}
-            </button>
+                <button
+                  type="submit"
+                  disabled={magicLoading}
+                  className="mt-2 w-full rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-emerald-500/30 hover:bg-emerald-400 disabled:opacity-60"
+                >
+                  {magicLoading ? t('login.magicSending', lang) : t('login.magicLink', lang)}
+                </button>
+              </>
+            )}
 
             <p className="mt-3 text-xs text-slate-500">
               {t('login.terms', lang)}{' '}
