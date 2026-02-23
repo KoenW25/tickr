@@ -195,9 +195,17 @@ export default function EventDetailPage() {
         </Link>
 
         <header className="mb-8">
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
-            {event.name}
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+              {event.name}
+            </h1>
+            <Link
+              href={`/upload?eventId=${eventId}`}
+              className="rounded-full bg-emerald-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-emerald-500/30 transition hover:bg-emerald-400"
+            >
+              {t('nav.sell', lang)}
+            </Link>
+          </div>
           <div className="mt-1 flex items-center gap-2 text-sm text-slate-500">
             {formattedDate && <span>{formattedDate}</span>}
             {formattedDate && event.venue && <span className="text-slate-300">·</span>}
@@ -317,17 +325,6 @@ export default function EventDetailPage() {
               </div>
             </div>
           </div>
-        </section>
-
-        {/* Ticket verkopen */}
-        <section className="mb-8">
-          <Link
-            href={`/upload?eventId=${eventId}`}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-100"
-          >
-            <span className="text-lg">+</span>
-            {t('event.sellTicket', lang)}
-          </Link>
         </section>
 
         {/* Acties */}
