@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { PDFDocument } from 'pdf-lib';
 import { fromBuffer } from 'pdf2pic';
 import { PNG } from 'pngjs';
+import jsQR from 'jsqr';
 import {
   BinaryBitmap,
   DecodeHintType,
@@ -26,6 +27,18 @@ function extractBase64Payload(value) {
 
 function decodeBarcodeFromPngBuffer(pngBuffer) {
   const parsed = PNG.sync.read(pngBuffer);
+
+  // First pass: jsQR is often more robust for ticket QR codes
+  const qrResult = jsQR(
+    Uint8ClampedArray.from(parsed.data),
+    parsed.width,
+    parsed.height
+  );
+  if (qrResult?.data) {
+    return qrResult.data;
+  }
+
+  // Fallback pass: ZXing supports multiple barcode formats
   const luminanceSource = new RGBLuminanceSource(
     Uint8ClampedArray.from(parsed.data),
     parsed.width,
@@ -50,24 +63,28 @@ function decodeBarcodeFromPngBuffer(pngBuffer) {
 }
 
 async function decodeBarcodeFromPdf(pdfBuffer, pageCount) {
-  const converter = fromBuffer(pdfBuffer, {
-    density: 200,
-    format: 'png',
-    width: 1600,
-    height: 2200,
-    savePath: '/tmp',
-    saveFilename: 'tickr-verify',
-  });
-
   const pagesToScan = Math.min(pageCount, 3);
-  for (let page = 1; page <= pagesToScan; page++) {
-    const converted = await converter(page, { responseType: 'base64' });
-    const base64 = extractBase64Payload(converted?.base64 || null);
-    if (!base64) continue;
+  const densities = [200, 300];
 
-    const pngBuffer = Buffer.from(base64, 'base64');
-    const barcodeData = decodeBarcodeFromPngBuffer(pngBuffer);
-    if (barcodeData) return barcodeData;
+  for (const density of densities) {
+    const converter = fromBuffer(pdfBuffer, {
+      density,
+      format: 'png',
+      width: 1600,
+      height: 2200,
+      savePath: '/tmp',
+      saveFilename: `tickr-verify-${density}`,
+    });
+
+    for (let page = 1; page <= pagesToScan; page++) {
+      const converted = await converter(page, { responseType: 'base64' });
+      const base64 = extractBase64Payload(converted?.base64 || null);
+      if (!base64) continue;
+
+      const pngBuffer = Buffer.from(base64, 'base64');
+      const barcodeData = decodeBarcodeFromPngBuffer(pngBuffer);
+      if (barcodeData) return barcodeData;
+    }
   }
 
   return null;
