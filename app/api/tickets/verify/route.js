@@ -167,10 +167,12 @@ export async function POST(request) {
     if (!barcodeData) {
       return Response.json(
         {
-          error:
-            'Geen barcode of QR-code gedetecteerd in dit ticket. Upload een ticket met een duidelijke code.',
+          verified: 'pending',
+          barcodeData: null,
+          warning:
+            'Geen barcode of QR-code gedetecteerd. Ticket is geüpload met status pending en kan later handmatig gecontroleerd worden.',
         },
-        { status: 422 }
+        { status: 200 }
       );
     }
 

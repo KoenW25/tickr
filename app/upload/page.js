@@ -249,6 +249,7 @@ export default function UploadPage() {
       const verification = await verifyTicketFile(file);
       const verifiedStatus = verification?.verified || 'pending';
       const barcodeData = verification?.barcodeData || null;
+      const verificationWarning = verification?.warning || '';
 
       const timestamp = Date.now();
       const safeName = file.name.replace(/\s+/g, '-');
@@ -304,7 +305,9 @@ export default function UploadPage() {
 
       setTicketId(insertData.id);
       setSuccessMessage(
-        'Je ticket is geüpload! Stel nu je vraagprijs in.'
+        verificationWarning
+          ? `Je ticket is geüpload! ${verificationWarning}`
+          : 'Je ticket is geüpload! Stel nu je vraagprijs in.'
       );
     } catch (error) {
       console.error('Upload error:', error?.message || error?.toString?.() || JSON.stringify(error));
