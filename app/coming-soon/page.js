@@ -1,14 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import { useLanguage } from '@/lib/LanguageContext';
 import { t } from '@/lib/translations';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
 
 export default function ComingSoonPage() {
   const { lang } = useLanguage();
@@ -25,27 +19,19 @@ export default function ComingSoonPage() {
     setStatus(null);
 
     try {
-      const { data: existing } = await supabase
-        .from('waitlist')
-        .select('id')
-        .eq('email', trimmed)
-        .maybeSingle();
+      const res = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: trimmed }),
+      });
 
-      if (existing) {
-        setStatus('exists');
-        return;
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json?.error || 'Wachtlijst-aanmelding mislukt.');
       }
 
-      const { error } = await supabase
-        .from('waitlist')
-        .insert({ email: trimmed });
-
-      if (error) {
-        if (error.code === '23505') {
-          setStatus('exists');
-        } else {
-          throw error;
-        }
+      if (json?.status === 'exists') {
+        setStatus('exists');
       } else {
         setStatus('success');
         setEmail('');

@@ -83,6 +83,8 @@ export default function Navbar() {
     }
 
     fetchTickerData();
+    const interval = setInterval(fetchTickerData, 15000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleLogout = async () => {
@@ -178,22 +180,16 @@ export default function Navbar() {
                       <span className="text-slate-200 tracking-[0.18em] text-[11px]">
                         {event.name.toUpperCase()}
                       </span>
-                      {event.price != null ? (
-                        <>
-                          <span className="font-semibold text-emerald-300">
-                            €{event.price}
-                          </span>
-                          <span className="text-[11px] text-emerald-400">
-                            {event.ticketCount} {event.ticketCount !== 1 ? t('nav.ticketsPlural', lang) : t('nav.tickets', lang)}
-                          </span>
-                        </>
-                      ) : event.highestBid != null ? (
-                        <span className="font-semibold text-sky-300">
-                          {t('nav.bid', lang)} €{event.highestBid}
-                        </span>
-                      ) : (
-                        <span className="font-semibold text-slate-500">—</span>
-                      )}
+                      <span className="font-semibold text-emerald-300">
+                        AANBOD {event.price != null ? `€${event.price}` : '—'}
+                      </span>
+                      <span className="text-[11px] text-emerald-400">
+                        {event.ticketCount} {event.ticketCount !== 1 ? t('nav.ticketsPlural', lang) : t('nav.tickets', lang)}
+                      </span>
+                      <span className="text-slate-500">|</span>
+                      <span className="font-semibold text-sky-300">
+                        {t('nav.bid', lang).toUpperCase()} {event.highestBid != null ? `€${event.highestBid}` : '—'}
+                      </span>
                     </Link>
                   ))}
                 </div>
