@@ -36,14 +36,14 @@ export default function MarktPage() {
 
       const { data: events, error: eventsErr } = await supabase
         .from('events')
-        .select('id, name, date, venue')
+        .select('id, name, date, venue, venue_name, city, country_code')
         .order('date', { ascending: true });
 
       if (eventsErr) throw eventsErr;
 
       const { data: tickets } = await supabase
         .from('tickets')
-        .select('id, event_id, ask_price, status')
+        .select('id, event_id, ask_price, status, verified')
         .eq('status', 'available')
         .not('ask_price', 'is', null);
 
@@ -82,16 +82,26 @@ export default function MarktPage() {
       const ticketMap = {};
       for (const t of tickets ?? []) {
         if (!t.event_id) continue;
-        if (!ticketMap[t.event_id]) ticketMap[t.event_id] = { askPrices: [], bidPrices: [], count: 0 };
+        if (!ticketMap[t.event_id]) {
+          ticketMap[t.event_id] = {
+            askPrices: [],
+            bidPrices: [],
+            count: 0,
+            verifiedCount: 0,
+          };
+        }
         ticketMap[t.event_id].askPrices.push(Number(t.ask_price));
         ticketMap[t.event_id].count++;
+        if (t.verified === 'verified') {
+          ticketMap[t.event_id].verifiedCount++;
+        }
         if (ticketBidMap[t.id] != null) {
           ticketMap[t.event_id].bidPrices.push(ticketBidMap[t.id]);
         }
       }
 
       const cards = (events ?? []).map((ev) => {
-        const td = ticketMap[ev.id] || { askPrices: [], bidPrices: [], count: 0 };
+        const td = ticketMap[ev.id] || { askPrices: [], bidPrices: [], count: 0, verifiedCount: 0 };
         const allBids = [...td.bidPrices, ...(eventBidMap[ev.id] || [])];
         const lowestAsk = td.askPrices.length > 0 ? Math.min(...td.askPrices) : null;
         const highestBid = allBids.length > 0 ? Math.max(...allBids) : null;
@@ -101,6 +111,7 @@ export default function MarktPage() {
           highestBid,
           ticketCount: td.count,
           bidCount: allBids.length,
+          verifiedCount: td.verifiedCount,
         };
       });
 
@@ -117,7 +128,10 @@ export default function MarktPage() {
     ? eventCards.filter(
         (ev) =>
           ev.name?.toLowerCase().includes(search.toLowerCase()) ||
-          ev.venue?.toLowerCase().includes(search.toLowerCase())
+          ev.venue?.toLowerCase().includes(search.toLowerCase()) ||
+          ev.venue_name?.toLowerCase().includes(search.toLowerCase()) ||
+          ev.city?.toLowerCase().includes(search.toLowerCase()) ||
+          ev.country_code?.toLowerCase().includes(search.toLowerCase())
       )
     : eventCards;
 
@@ -139,7 +153,7 @@ export default function MarktPage() {
           date: newEventDate || null,
           venue: newEventVenue.trim() || null,
         })
-        .select('id, name, date, venue')
+        .select('id, name, date, venue, venue_name, city, country_code')
         .single();
 
       if (insertErr) throw insertErr;
@@ -293,6 +307,9 @@ function EventCard({ event, lang }) {
 
   const hasTickets = event.ticketCount > 0;
   const isExpired = event.date && new Date(event.date) < new Date(new Date().toDateString());
+  const locationText = [event.city, event.venue_name || event.venue, event.country_code]
+    .filter(Boolean)
+    .join(' - ');
 
   return (
     <Link href={`/markt/${event.id}`} className="block">
@@ -300,6 +317,14 @@ function EventCard({ event, lang }) {
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <h2 className={`text-sm font-semibold ${isExpired ? 'text-slate-400' : 'text-slate-900'}`}>{event.name}</h2>
+            {event.verifiedCount > 0 && (
+              <span
+                title={t('market.verified', lang)}
+                className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-[11px] font-bold text-emerald-600 ring-1 ring-emerald-200"
+              >
+                ✓
+              </span>
+            )}
             {isExpired && (
               <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.18em] text-slate-500">
                 {t('market.expired', lang)}
@@ -308,8 +333,8 @@ function EventCard({ event, lang }) {
           </div>
           <div className="flex items-center gap-2 text-xs text-slate-500">
             {formattedDate && <span>{formattedDate}</span>}
-            {formattedDate && event.venue && <span className="text-slate-300">·</span>}
-            {event.venue && <span>{event.venue}</span>}
+            {formattedDate && locationText && <span className="text-slate-300">·</span>}
+            {locationText && <span>{locationText}</span>}
           </div>
         </div>
 

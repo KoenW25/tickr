@@ -30,7 +30,9 @@ export default function UploadPage() {
   const [showAddEvent, setShowAddEvent] = useState(false);
   const [newEventName, setNewEventName] = useState('');
   const [newEventDate, setNewEventDate] = useState('');
-  const [newEventVenue, setNewEventVenue] = useState('');
+  const [newEventCity, setNewEventCity] = useState('');
+  const [newEventLocation, setNewEventLocation] = useState('');
+  const [newEventCountry, setNewEventCountry] = useState('');
   const [addingEvent, setAddingEvent] = useState(false);
 
   const [ticketId, setTicketId] = useState(null);
@@ -68,7 +70,7 @@ export default function UploadPage() {
     async function fetchEvents() {
       const { data, error } = await supabase
         .from('events')
-        .select('id, name, date, venue')
+        .select('id, name, date, venue, venue_name, city, country_code')
         .order('date', { ascending: true });
 
       if (!error && data) {
@@ -84,7 +86,10 @@ export default function UploadPage() {
     return events.filter(
       (e) =>
         e.name?.toLowerCase().includes(q) ||
-        e.venue?.toLowerCase().includes(q)
+        e.venue?.toLowerCase().includes(q) ||
+        e.venue_name?.toLowerCase().includes(q) ||
+        e.city?.toLowerCase().includes(q) ||
+        e.country_code?.toLowerCase().includes(q)
     );
   }, [events, eventSearch]);
 
@@ -103,7 +108,9 @@ export default function UploadPage() {
   const handleOpenAddEvent = () => {
     setNewEventName(eventSearch.trim());
     setNewEventDate('');
-    setNewEventVenue('');
+    setNewEventCity('');
+    setNewEventLocation('');
+    setNewEventCountry('');
     setShowDropdown(false);
     setShowAddEvent(true);
   };
@@ -122,14 +129,21 @@ export default function UploadPage() {
     setErrorMessage('');
 
     try {
+      const venueParts = [newEventCity.trim(), newEventLocation.trim()].filter(Boolean);
+      const composedVenue = venueParts.length > 0 ? venueParts.join(' - ') : null;
+      const countryCode = newEventCountry.trim().toUpperCase() || null;
+
       const { data, error } = await supabase
         .from('events')
         .insert({
           name: newEventName.trim(),
           date: newEventDate,
-          venue: newEventVenue.trim() || null,
+          city: newEventCity.trim() || null,
+          venue_name: newEventLocation.trim() || null,
+          country_code: countryCode,
+          venue: composedVenue,
         })
-        .select('id, name, date, venue')
+        .select('id, name, date, venue, venue_name, city, country_code')
         .single();
 
       if (error) throw error;
@@ -150,6 +164,35 @@ export default function UploadPage() {
     if (fileInputRef.current) {
       fileInputRef.current.click();
     }
+  };
+
+  const verifyTicketFile = async (ticketFile) => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      throw new Error('Je sessie is verlopen. Log opnieuw in en probeer het opnieuw.');
+    }
+
+    const formData = new FormData();
+    formData.append('file', ticketFile);
+
+    const verifyRes = await fetch('/api/tickets/verify', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: formData,
+    });
+
+    const verifyJson = await verifyRes.json().catch(() => ({}));
+
+    if (!verifyRes.ok) {
+      throw new Error(verifyJson?.error || 'Ticket verificatie is mislukt.');
+    }
+
+    return verifyJson;
   };
 
   const handleFileChange = (event) => {
@@ -203,6 +246,10 @@ export default function UploadPage() {
     setSuccessMessage('');
 
     try {
+      const verification = await verifyTicketFile(file);
+      const verifiedStatus = verification?.verified || 'pending';
+      const barcodeData = verification?.barcodeData || null;
+
       const timestamp = Date.now();
       const safeName = file.name.replace(/\s+/g, '-');
       const path = `${user.id}/${timestamp}-${safeName}`;
@@ -245,6 +292,8 @@ export default function UploadPage() {
           event_date: eventDate,
           status: 'available',
           ask_price: null,
+          barcode_data: barcodeData,
+          verified: verifiedStatus,
         })
         .select('id')
         .single();
@@ -383,8 +432,10 @@ export default function UploadPage() {
                   >
                     <div>
                       <p className="font-medium text-slate-900">{ev.name}</p>
-                      {ev.venue && (
-                        <p className="text-[11px] text-slate-400">{ev.venue}</p>
+                      {(ev.city || ev.venue_name || ev.venue || ev.country_code) && (
+                        <p className="text-[11px] text-slate-400">
+                          {[ev.city, ev.venue_name || ev.venue, ev.country_code].filter(Boolean).join(' - ')}
+                        </p>
                       )}
                     </div>
                     {ev.date && (
@@ -422,7 +473,7 @@ export default function UploadPage() {
               <h3 className="mb-3 text-xs font-semibold text-slate-900">
                 {t('upload.addEventTitle', lang)}
               </h3>
-              <div className="grid gap-3 text-sm sm:grid-cols-3">
+              <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-slate-700">{t('upload.name', lang)}</label>
                   <input
@@ -443,13 +494,34 @@ export default function UploadPage() {
                   />
                 </div>
                 <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-700">{t('upload.cityOptional', lang)}</label>
+                  <input
+                    type="text"
+                    value={newEventCity}
+                    onChange={(e) => setNewEventCity(e.target.value)}
+                    placeholder={t('upload.cityPlaceholder', lang)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
+                  />
+                </div>
+                <div className="space-y-1">
                   <label className="text-xs font-medium text-slate-700">{t('upload.locationOptional', lang)}</label>
                   <input
                     type="text"
-                    value={newEventVenue}
-                    onChange={(e) => setNewEventVenue(e.target.value)}
+                    value={newEventLocation}
+                    onChange={(e) => setNewEventLocation(e.target.value)}
                     placeholder={t('upload.locationPlaceholder', lang)}
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-700">{t('upload.countryOptional', lang)}</label>
+                  <input
+                    type="text"
+                    value={newEventCountry}
+                    onChange={(e) => setNewEventCountry(e.target.value)}
+                    placeholder={t('upload.countryPlaceholder', lang)}
+                    maxLength={2}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm uppercase text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
                   />
                 </div>
               </div>
@@ -488,7 +560,13 @@ export default function UploadPage() {
                         year: 'numeric',
                       })
                     : ''}
-                  {selectedEvent.venue ? ` — ${selectedEvent.venue}` : ''}
+                  {([selectedEvent.city, selectedEvent.venue_name || selectedEvent.venue, selectedEvent.country_code]
+                    .filter(Boolean)
+                    .join(' - '))
+                    ? ` — ${[selectedEvent.city, selectedEvent.venue_name || selectedEvent.venue, selectedEvent.country_code]
+                        .filter(Boolean)
+                        .join(' - ')}`
+                    : ''}
                 </p>
               </div>
             </div>

@@ -37,7 +37,7 @@ export default function EventDetailPage() {
 
         const { data: eventData, error: eventErr } = await supabase
           .from('events')
-          .select('id, name, date, venue')
+          .select('id, name, date, venue, venue_name, city, country_code')
           .eq('id', eventId)
           .single();
 
@@ -205,6 +205,9 @@ export default function EventDetailPage() {
         year: 'numeric',
       })
     : null;
+  const locationText = [event.city, event.venue_name || event.venue, event.country_code]
+    .filter(Boolean)
+    .join(' - ');
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -239,8 +242,8 @@ export default function EventDetailPage() {
           </div>
           <div className="mt-1 flex items-center gap-2 text-sm text-slate-500">
             {formattedDate && <span>{formattedDate}</span>}
-            {formattedDate && event.venue && <span className="text-slate-300">·</span>}
-            {event.venue && <span>{event.venue}</span>}
+            {formattedDate && locationText && <span className="text-slate-300">·</span>}
+            {locationText && <span>{locationText}</span>}
           </div>
         </header>
 
