@@ -6,6 +6,28 @@ const supabaseService = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+async function getUserEmailById(userId) {
+  if (!userId) return null;
+
+  const { data: authData, error: authError } = await supabaseService.auth.admin.getUserById(userId);
+  if (!authError && authData?.user?.email) {
+    return authData.user.email;
+  }
+
+  // Fallback for projects that keep emails in public profiles.
+  const { data: profileData, error: profileError } = await supabaseService
+    .from('profiles')
+    .select('email')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (!profileError && profileData?.email) {
+    return profileData.email;
+  }
+
+  return null;
+}
+
 export async function POST(request) {
   try {
     const body = await request.text();
@@ -80,34 +102,35 @@ export async function POST(request) {
         const ticket = data?.[0];
         if (ticket) {
           const eventName = ticket.event_name || 'Onbekend evenement';
-          const totalAmount = payment.amount?.value || ticket.price;
+          const totalAmount = payment.amount?.value || ticket.ask_price || ticket.price;
+          const buyerUserId = buyerId || ticket.buyer_id;
+          const sellerUserId = ticket.seller_id || ticket.user_id;
 
           // Send buyer confirmation email
-          if (buyerId) {
-            const { data: buyer } = await supabaseService
-              .from('profiles')
-              .select('email')
-              .eq('id', buyerId)
-              .single();
-
-            if (buyer?.email) {
-              await sendBuyerConfirmationEmail(buyer.email, eventName, totalAmount);
-              console.log('[Mollie Webhook] Buyer confirmation email sent to', buyer.email);
+          if (buyerUserId) {
+            const buyerEmail = await getUserEmailById(buyerUserId);
+            if (buyerEmail) {
+              await sendBuyerConfirmationEmail(
+                buyerEmail,
+                eventName,
+                totalAmount,
+                ticket.pdf_url || null
+              );
+              console.log('[Mollie Webhook] Buyer confirmation email sent to', buyerEmail);
+            } else {
+              console.warn('[Mollie Webhook] Could not resolve buyer email for', buyerUserId);
             }
           }
 
           // Send seller notification email
-          if (ticket.seller_id) {
-            const { data: seller } = await supabaseService
-              .from('profiles')
-              .select('email')
-              .eq('id', ticket.seller_id)
-              .single();
-
-            const sellerAmount = ticket.price;
-            if (seller?.email) {
-              await sendSellerNotificationEmail(seller.email, eventName, sellerAmount);
-              console.log('[Mollie Webhook] Seller notification email sent to', seller.email);
+          if (sellerUserId) {
+            const sellerEmail = await getUserEmailById(sellerUserId);
+            const sellerAmount = ticket.ask_price || ticket.price || totalAmount;
+            if (sellerEmail) {
+              await sendSellerNotificationEmail(sellerEmail, eventName, sellerAmount);
+              console.log('[Mollie Webhook] Seller notification email sent to', sellerEmail);
+            } else {
+              console.warn('[Mollie Webhook] Could not resolve seller email for', sellerUserId);
             }
           }
         }
