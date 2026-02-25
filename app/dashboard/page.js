@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useLanguage } from '@/lib/LanguageContext';
 import { t } from '@/lib/translations';
 import supabase from '@/lib/supabase';
@@ -389,9 +390,9 @@ export default function DashboardPage() {
   const boughtCount = purchasedTickets.length;
 
   const displayName = user?.user_metadata?.full_name?.split?.(' ')?.[0] || user?.email || '';
-  const goToEvent = (eventId) => {
-    if (!eventId) return;
-    window.location.href = `/markt/${eventId}`;
+  const goToEvent = (eventHref) => {
+    if (!eventHref) return;
+    window.location.href = eventHref;
   };
 
   return (
@@ -511,14 +512,25 @@ export default function DashboardPage() {
                       {sellerTickets.map((ticket) => {
                         const name = ticket.eventInfo?.name || ticket.event_name || t('dash.ticket', lang);
                         const date = ticket.eventInfo?.date || ticket.event_date;
+                        const eventHref = ticket.event_id || ticket.eventInfo?.id ? `/markt/${ticket.event_id || ticket.eventInfo?.id}` : null;
                         return (
                           <tr
                             key={ticket.id}
-                            onClick={() => goToEvent(ticket.event_id)}
-                            className={ticket.event_id ? 'cursor-pointer hover:bg-slate-50' : ''}
+                            onClick={() => goToEvent(eventHref)}
+                            className={eventHref ? 'cursor-pointer hover:bg-slate-50' : ''}
                           >
                             <td className="px-3 py-2 text-xs text-slate-900">
-                              {name}
+                              {eventHref ? (
+                                <Link
+                                  href={eventHref}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="font-medium text-slate-900 hover:text-sky-700 hover:underline"
+                                >
+                                  {name}
+                                </Link>
+                              ) : (
+                                name
+                              )}
                               {date && (
                                 <span className="ml-1.5 text-[10px] text-slate-400">
                                   {new Date(date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
@@ -575,14 +587,25 @@ export default function DashboardPage() {
                       {purchasedTickets.map((ticket) => {
                         const name = ticket.eventInfo?.name || ticket.event_name || t('dash.ticket', lang);
                         const date = ticket.eventInfo?.date || ticket.event_date;
+                        const eventHref = ticket.event_id || ticket.eventInfo?.id ? `/markt/${ticket.event_id || ticket.eventInfo?.id}` : null;
                         return (
                           <tr
                             key={ticket.id}
-                            onClick={() => goToEvent(ticket.event_id)}
-                            className={ticket.event_id ? 'cursor-pointer hover:bg-slate-50' : ''}
+                            onClick={() => goToEvent(eventHref)}
+                            className={eventHref ? 'cursor-pointer hover:bg-slate-50' : ''}
                           >
                             <td className="px-3 py-2 text-xs text-slate-900">
-                              {name}
+                              {eventHref ? (
+                                <Link
+                                  href={eventHref}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="font-medium text-slate-900 hover:text-sky-700 hover:underline"
+                                >
+                                  {name}
+                                </Link>
+                              ) : (
+                                name
+                              )}
                               {date && (
                                 <span className="ml-1.5 text-[10px] text-slate-400">
                                   {new Date(date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
