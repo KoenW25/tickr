@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -22,6 +22,32 @@ function LoginContent() {
   const [devPassword, setDevPassword] = useState('');
   const [devError, setDevError] = useState('');
   const [devLoading, setDevLoading] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function redirectIfSessionExists() {
+      const { data } = await supabase.auth.getSession();
+      if (mounted && data?.session) {
+        router.replace('/dashboard');
+      }
+    }
+
+    redirectIfSessionExists();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session) {
+        router.replace('/dashboard');
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [router]);
 
   const handleMagicLink = async (e) => {
     e.preventDefault();
