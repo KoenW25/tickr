@@ -47,7 +47,12 @@ async function sendWelcomeEmailForFirstLogin(supabase) {
 
   if (!user?.email || !isUserNew(user.created_at)) return;
   const name = getDisplayName(user);
-  await sendWelcomeEmail(user.email, name);
+  try {
+    await sendWelcomeEmail(user.email, name);
+  } catch (error) {
+    // Do not block login if email delivery fails.
+    console.error('[Auth Callback] Welcome email failed:', error);
+  }
 }
 
 export async function GET(request) {
@@ -59,7 +64,11 @@ export async function GET(request) {
 
   try {
     if (code) {
-      await supabase.auth.exchangeCodeForSession(code);
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) {
+        console.error('[Auth Callback] exchangeCodeForSession failed:', error);
+        return NextResponse.redirect(new URL('/login', url.origin));
+      }
       await sendWelcomeEmailForFirstLogin(supabase);
       return NextResponse.redirect(new URL('/dashboard', url.origin));
     }
@@ -70,10 +79,12 @@ export async function GET(request) {
         type,
       });
 
-      if (!error) {
-        await sendWelcomeEmailForFirstLogin(supabase);
-        return NextResponse.redirect(new URL('/dashboard', url.origin));
+      if (error) {
+        console.error('[Auth Callback] verifyOtp failed:', error);
+        return NextResponse.redirect(new URL('/login', url.origin));
       }
+      await sendWelcomeEmailForFirstLogin(supabase);
+      return NextResponse.redirect(new URL('/dashboard', url.origin));
     }
   } catch (error) {
     console.error('[Auth Callback] Session exchange failed:', error);
