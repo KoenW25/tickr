@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { sendWelcomeEmail } from '@/lib/email';
 
 async function createSupabaseServerClient() {
   const cookieStore = await cookies();
@@ -23,17 +24,30 @@ async function createSupabaseServerClient() {
   );
 }
 
-async function sendWelcomeEmailIfPossible(supabase, request) {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session?.access_token) return;
+function isUserNew(createdAt) {
+  if (!createdAt) return false;
+  const createdMs = new Date(createdAt).getTime();
+  if (!Number.isFinite(createdMs)) return false;
+  return Date.now() - createdMs <= 60 * 1000;
+}
 
-  const origin = new URL(request.url).origin;
-  await fetch(`${origin}/api/email/welcome`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${session.access_token}` },
-  }).catch(() => {});
+function getDisplayName(user) {
+  const meta = user?.user_metadata || {};
+  const fullName = meta.full_name || meta.name || meta.given_name || '';
+  if (String(fullName).trim()) return String(fullName).trim();
+  const email = user?.email || '';
+  if (!email.includes('@')) return 'daar';
+  return email.split('@')[0];
+}
+
+async function sendWelcomeEmailForFirstLogin(supabase) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user?.email || !isUserNew(user.created_at)) return;
+  const name = getDisplayName(user);
+  await sendWelcomeEmail(user.email, name);
 }
 
 export async function GET(request) {
@@ -46,7 +60,7 @@ export async function GET(request) {
   try {
     if (code) {
       await supabase.auth.exchangeCodeForSession(code);
-      await sendWelcomeEmailIfPossible(supabase, request);
+      await sendWelcomeEmailForFirstLogin(supabase);
       return NextResponse.redirect(new URL('/dashboard', url.origin));
     }
 
@@ -57,7 +71,7 @@ export async function GET(request) {
       });
 
       if (!error) {
-        await sendWelcomeEmailIfPossible(supabase, request);
+        await sendWelcomeEmailForFirstLogin(supabase);
         return NextResponse.redirect(new URL('/dashboard', url.origin));
       }
     }
