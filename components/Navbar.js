@@ -8,7 +8,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { t } from '@/lib/translations';
 
 export default function Navbar() {
-  const tickerDuration = '180s';
+  const tickerDuration = '35s';
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tickerEvents, setTickerEvents] = useState([]);
