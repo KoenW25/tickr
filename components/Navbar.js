@@ -8,6 +8,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { t } from '@/lib/translations';
 
 export default function Navbar() {
+  const tickerDuration = '180s';
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tickerEvents, setTickerEvents] = useState([]);
@@ -323,17 +324,20 @@ export default function Navbar() {
           <div
             className="ticker-hover-zone relative mx-auto max-w-6xl overflow-hidden px-4"
             onMouseEnter={() => setTickerPaused(true)}
+            onMouseMove={() => setTickerPaused(true)}
             onMouseLeave={() => setTickerPaused(false)}
             onPointerEnter={() => setTickerPaused(true)}
+            onPointerMove={() => setTickerPaused(true)}
             onPointerLeave={() => setTickerPaused(false)}
             onFocusCapture={() => setTickerPaused(true)}
             onBlurCapture={() => setTickerPaused(false)}
             onTouchStart={() => setTickerPaused(true)}
+            onTouchEnd={() => setTickerPaused(false)}
           >
             <div
               className="ticker-track flex gap-12 py-2"
               style={{
-                animationDuration: '90s',
+                animationDuration: tickerDuration,
                 animationPlayState: tickerPaused ? 'paused' : 'running',
               }}
             >

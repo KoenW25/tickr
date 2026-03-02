@@ -29,7 +29,7 @@ body {
 }
 
 .ticker-track {
-  animation: ticker-move 90s linear infinite;
+  animation: ticker-move 180s linear infinite;
   width: max-content;
 }
 
