@@ -139,7 +139,22 @@ export default function Navbar() {
         type: item.type,
       }));
 
-    return [...quickMatches, ...eventMatches].slice(0, 8);
+    const hasExactEvent = searchEvents.some(
+      (ev) => ev.name?.trim().toLowerCase() === q
+    );
+    const addEventItem =
+      !hasExactEvent && headerSearch.trim().length >= 2
+        ? [
+            {
+              id: 'add-event',
+              label: `Event "${headerSearch.trim()}" toevoegen`,
+              href: `/upload?openAddEvent=true&createEvent=${encodeURIComponent(headerSearch.trim())}`,
+              type: 'add-event',
+            },
+          ]
+        : [];
+
+    return [...quickMatches, ...eventMatches, ...addEventItem].slice(0, 8);
   }, [headerSearch, searchEvents, quickLinks]);
 
   const handleSearchItemClick = (item) => {
@@ -165,8 +180,8 @@ export default function Navbar() {
               <span>Tckr</span>
             </Link>
 
-            <div className="flex items-center gap-2 sm:gap-3">
-              <div className="relative w-32 sm:w-44 lg:w-56">
+            <div className="flex min-w-0 flex-nowrap items-center justify-end gap-2 sm:gap-3">
+              <div className="relative w-24 shrink-0 sm:w-36 lg:w-44 xl:w-56">
                 <input
                   type="text"
                   value={headerSearch}
@@ -190,7 +205,7 @@ export default function Navbar() {
                         >
                           <span className="text-slate-800">{item.label}</span>
                           <span className="text-[10px] uppercase tracking-[0.16em] text-slate-400">
-                            {item.type === 'event' ? 'Event' : 'Pagina'}
+                            {item.type === 'event' ? 'Event' : item.type === 'add-event' ? 'Nieuw' : 'Pagina'}
                           </span>
                         </button>
                       ))

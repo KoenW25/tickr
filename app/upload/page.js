@@ -159,6 +159,17 @@ export default function UploadPage() {
     }
   }, [searchParams, events, selectedEvent]);
 
+  useEffect(() => {
+    const shouldOpenAddEvent = searchParams.get('openAddEvent') === 'true';
+    const createEventName = searchParams.get('createEvent')?.trim() || '';
+    if (!shouldOpenAddEvent || !createEventName || selectedEvent || showAddEvent) return;
+
+    setEventSearch(createEventName);
+    setNewEventName(createEventName);
+    setShowDropdown(false);
+    setShowAddEvent(true);
+  }, [searchParams, selectedEvent, showAddEvent]);
+
   const filteredEvents = useMemo(() => {
     if (!eventSearch.trim()) return events;
     const q = eventSearch.toLowerCase();
