@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import supabase from '@/lib/supabase';
@@ -11,6 +11,10 @@ export default function Navbar() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tickerEvents, setTickerEvents] = useState([]);
+  const [searchEvents, setSearchEvents] = useState([]);
+  const [headerSearch, setHeaderSearch] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const router = useRouter();
   const { lang, setLang } = useLanguage();
 
@@ -80,6 +84,7 @@ export default function Navbar() {
       });
 
       setTickerEvents(enriched);
+      setSearchEvents(events);
     }
 
     fetchTickerData();
@@ -92,75 +97,207 @@ export default function Navbar() {
     window.location.href = '/';
   };
 
-  const displayName =
-    user?.user_metadata?.full_name?.split?.(' ')?.[0] || user?.email || '';
+  const quickLinks = useMemo(() => {
+    const links = [
+      { id: 'markt', label: t('nav.market', lang), href: '/markt', type: 'page' },
+      { id: 'faq', label: t('nav.howItWorks', lang), href: '/hoe-het-werkt', type: 'page' },
+    ];
+
+    if (!loading && user) {
+      links.push(
+        { id: 'verkopen', label: t('nav.sell', lang), href: '/upload', type: 'page' },
+        { id: 'dashboard', label: t('nav.dashboard', lang), href: '/dashboard', type: 'page' },
+        { id: 'logout', label: t('nav.logout', lang), href: '#logout', type: 'action' }
+      );
+    }
+
+    if (!loading && !user) {
+      links.push({ id: 'login', label: t('nav.login', lang), href: '/login', type: 'page' });
+    }
+
+    return links;
+  }, [lang, loading, user]);
+
+  const searchItems = useMemo(() => {
+    const q = headerSearch.trim().toLowerCase();
+    if (!q) return [];
+
+    const eventMatches = searchEvents
+      .filter((ev) => ev.name?.toLowerCase().includes(q))
+      .slice(0, 5)
+      .map((ev) => ({
+        id: `event-${ev.id}`,
+        label: ev.name,
+        href: `/markt/${ev.id}`,
+        type: 'event',
+      }));
+
+    const quickMatches = quickLinks
+      .filter((item) => item.label.toLowerCase().includes(q))
+      .slice(0, 5)
+      .map((item) => ({
+        id: `quick-${item.id}`,
+        label: item.label,
+        href: item.href,
+        type: item.type,
+      }));
+
+    return [...quickMatches, ...eventMatches].slice(0, 8);
+  }, [headerSearch, searchEvents, quickLinks]);
+
+  const handleSearchItemClick = (item) => {
+    setSearchOpen(false);
+    setHeaderSearch('');
+    if (item.type === 'action' && item.href === '#logout') {
+      handleLogout();
+      return;
+    }
+    router.push(item.href);
+  };
 
   return (
     <>
       <header className="border-b border-slate-200 bg-white/80 backdrop-blur">
-        <nav className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-lg font-semibold tracking-tight hover:opacity-80"
-          >
-            <span className="text-xl">🎟</span>
-            <span>Tckr</span>
-          </Link>
-          <div className="flex items-center gap-4 text-sm text-slate-600">
+        <nav className="mx-auto max-w-6xl px-4 py-3 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between gap-3">
             <Link
-              href="/markt"
-              className="hidden rounded-full bg-sky-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-sky-500/30 transition hover:bg-sky-400 sm:inline-block"
+              href="/"
+              className="flex items-center gap-2 text-lg font-semibold tracking-tight hover:opacity-80"
             >
-              {t('nav.market', lang)}
+              <span className="text-xl">🎟</span>
+              <span>Tckr</span>
             </Link>
 
-            {!loading && !user && (
+            <div className="hidden items-center gap-3 lg:flex">
               <Link
-                href="/login"
-                className="rounded-full bg-emerald-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-emerald-500/30 transition hover:bg-emerald-400"
+                href="/markt"
+                className="rounded-full bg-sky-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-sky-500/30 transition hover:bg-sky-400"
               >
-                {t('nav.login', lang)}
+                {t('nav.market', lang)}
               </Link>
-            )}
+              {!loading && user && (
+                <>
+                  <Link
+                    href="/upload"
+                    className="rounded-full bg-emerald-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-emerald-500/30 transition hover:bg-emerald-400"
+                  >
+                    {t('nav.sell', lang)}
+                  </Link>
+                  <Link
+                    href="/dashboard"
+                    className="rounded-full border border-slate-200 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                  >
+                    {t('nav.dashboard', lang)}
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="rounded-full bg-slate-900 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-slate-900/30 transition hover:bg-slate-800"
+                  >
+                    {t('nav.logout', lang)}
+                  </button>
+                </>
+              )}
+              {!loading && !user && (
+                <Link
+                  href="/login"
+                  className="rounded-full bg-emerald-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-emerald-500/30 transition hover:bg-emerald-400"
+                >
+                  {t('nav.login', lang)}
+                </Link>
+              )}
+              <Link
+                href="/hoe-het-werkt"
+                className="rounded-full border border-slate-200 px-4 py-1.5 text-xs font-medium uppercase tracking-[0.18em] text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+              >
+                {t('nav.howItWorks', lang)}
+              </Link>
+            </div>
 
-            {!loading && user && (
-              <div className="flex items-center gap-3">
-                <Link
-                  href="/upload"
-                  className="hidden rounded-full bg-emerald-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-emerald-500/30 transition hover:bg-emerald-400 sm:inline-block"
-                >
-                  {t('nav.sell', lang)}
-                </Link>
-                <Link
-                  href="/dashboard"
-                  className="hidden rounded-full border border-slate-200 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 hover:border-slate-300 hover:bg-slate-50 sm:inline-block"
-                >
-                  {t('nav.dashboard', lang)}
-                </Link>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="rounded-full bg-slate-900 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-slate-900/30 transition hover:bg-slate-800"
-                >
-                  {t('nav.logout', lang)}
-                </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setLang(lang === 'nl' ? 'en' : 'nl')}
+                className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition"
+              >
+                {lang === 'nl' ? 'EN' : 'NL'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen((v) => !v)}
+                className="inline-flex rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition lg:hidden"
+              >
+                Menu
+              </button>
+            </div>
+          </div>
+
+          <div className="relative mt-3">
+            <input
+              type="text"
+              value={headerSearch}
+              onChange={(e) => {
+                setHeaderSearch(e.target.value);
+                setSearchOpen(true);
+              }}
+              onFocus={() => setSearchOpen(true)}
+              placeholder="Zoek events of pagina's..."
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
+            />
+            {searchOpen && headerSearch.trim() && (
+              <div className="absolute z-30 mt-1 max-h-72 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl">
+                {searchItems.length > 0 ? (
+                  searchItems.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => handleSearchItemClick(item)}
+                      className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-slate-50"
+                    >
+                      <span className="text-slate-800">{item.label}</span>
+                      <span className="text-[10px] uppercase tracking-[0.16em] text-slate-400">
+                        {item.type === 'event' ? 'Event' : 'Pagina'}
+                      </span>
+                    </button>
+                  ))
+                ) : (
+                  <p className="px-3 py-2 text-xs text-slate-400">Geen resultaten</p>
+                )}
               </div>
             )}
-
-            <Link
-              href="/hoe-het-werkt"
-              className="hidden rounded-full border border-slate-200 px-4 py-1.5 text-xs font-medium uppercase tracking-[0.18em] text-slate-600 hover:border-slate-300 hover:bg-slate-50 sm:inline-block"
-            >
-              {t('nav.howItWorks', lang)}
-            </Link>
-            <button
-              type="button"
-              onClick={() => setLang(lang === 'nl' ? 'en' : 'nl')}
-              className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition"
-            >
-              {lang === 'nl' ? 'EN' : 'NL'}
-            </button>
           </div>
+
+          {mobileMenuOpen && (
+            <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-slate-200 bg-white p-3 lg:hidden">
+              <Link href="/markt" className="rounded-full bg-sky-500 px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.16em] text-white">
+                {t('nav.market', lang)}
+              </Link>
+              {!loading && user ? (
+                <>
+                  <Link href="/upload" className="rounded-full bg-emerald-500 px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.16em] text-white">
+                    {t('nav.sell', lang)}
+                  </Link>
+                  <Link href="/dashboard" className="rounded-full border border-slate-200 px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.16em] text-slate-700">
+                    {t('nav.dashboard', lang)}
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="rounded-full bg-slate-900 px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.16em] text-white"
+                  >
+                    {t('nav.logout', lang)}
+                  </button>
+                </>
+              ) : (
+                <Link href="/login" className="rounded-full bg-emerald-500 px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.16em] text-white">
+                  {t('nav.login', lang)}
+                </Link>
+              )}
+              <Link href="/hoe-het-werkt" className="rounded-full border border-slate-200 px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.16em] text-slate-700">
+                {t('nav.howItWorks', lang)}
+              </Link>
+            </div>
+          )}
         </nav>
       </header>
 

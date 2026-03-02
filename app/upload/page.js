@@ -7,6 +7,72 @@ import { t } from '@/lib/translations';
 import supabase from '@/lib/supabase';
 import { calculateServiceFee, calculateBuyerTotal, formatPrice } from '@/lib/fees';
 
+const VENUE_SUGGESTIONS = [
+  'Lofi',
+  'Ziggo Dome',
+  'AFAS Live',
+  'Paradiso',
+  'Melkweg',
+  'TivoliVredenburg',
+  '013 Poppodium',
+  'Doornroosje',
+  'Maassilo',
+  'Rotterdam Ahoy',
+  'Johan Cruijff ArenA',
+  'GelreDome',
+  'Gashouder',
+  'Brabanthallen',
+  'Poppodium 013',
+];
+
+const COUNTRY_OPTIONS = [
+  { code: 'NL', label: 'Nederland' },
+  { code: 'BE', label: 'Belgie' },
+  { code: 'DE', label: 'Duitsland' },
+  { code: 'DK', label: 'Denemarken' },
+  { code: 'ES', label: 'Spanje' },
+  { code: 'FI', label: 'Finland' },
+  { code: 'FR', label: 'Frankrijk' },
+  { code: 'GB', label: 'Verenigd Koninkrijk' },
+  { code: 'IE', label: 'Ierland' },
+  { code: 'IT', label: 'Italie' },
+  { code: 'NO', label: 'Noorwegen' },
+  { code: 'PT', label: 'Portugal' },
+  { code: 'SE', label: 'Zweden' },
+  { code: 'CH', label: 'Zwitserland' },
+  { code: 'AT', label: 'Oostenrijk' },
+  { code: 'PL', label: 'Polen' },
+  { code: 'CZ', label: 'Tsjechie' },
+  { code: 'HU', label: 'Hongarije' },
+  { code: 'RO', label: 'Roemenie' },
+  { code: 'BG', label: 'Bulgarije' },
+  { code: 'HR', label: 'Kroatie' },
+  { code: 'SI', label: 'Slovenie' },
+  { code: 'SK', label: 'Slowakije' },
+  { code: 'EE', label: 'Estland' },
+  { code: 'LV', label: 'Letland' },
+  { code: 'LT', label: 'Litouwen' },
+  { code: 'GR', label: 'Griekenland' },
+  { code: 'LU', label: 'Luxemburg' },
+  { code: 'US', label: 'Verenigde Staten' },
+  { code: 'CA', label: 'Canada' },
+  { code: 'AU', label: 'Australie' },
+  { code: 'NZ', label: 'Nieuw-Zeeland' },
+  { code: 'BR', label: 'Brazilie' },
+  { code: 'AR', label: 'Argentinie' },
+  { code: 'MX', label: 'Mexico' },
+  { code: 'ZA', label: 'Zuid-Afrika' },
+  { code: 'AE', label: 'Verenigde Arabische Emiraten' },
+  { code: 'IN', label: 'India' },
+  { code: 'JP', label: 'Japan' },
+  { code: 'KR', label: 'Zuid-Korea' },
+  { code: 'SG', label: 'Singapore' },
+].sort((a, b) => {
+  if (a.code === 'NL') return -1;
+  if (b.code === 'NL') return 1;
+  return a.label.localeCompare(b.label, 'nl');
+});
+
 export default function UploadPage() {
   const { lang } = useLanguage();
   const router = useRouter();
@@ -523,22 +589,32 @@ export default function UploadPage() {
                   <label className="text-xs font-medium text-slate-700">{t('upload.locationOptional', lang)}</label>
                   <input
                     type="text"
+                    list="venue-suggestions"
                     value={newEventLocation}
                     onChange={(e) => setNewEventLocation(e.target.value)}
-                    placeholder={t('upload.locationPlaceholder', lang)}
+                    placeholder="Bijv. Lofi"
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
                   />
+                  <datalist id="venue-suggestions">
+                    {VENUE_SUGGESTIONS.map((venue) => (
+                      <option key={venue} value={venue} />
+                    ))}
+                  </datalist>
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-slate-700">{t('upload.countryOptional', lang)}</label>
-                  <input
-                    type="text"
+                  <select
                     value={newEventCountry}
                     onChange={(e) => setNewEventCountry(e.target.value)}
-                    placeholder={t('upload.countryPlaceholder', lang)}
-                    maxLength={2}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm uppercase text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
-                  />
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
+                  >
+                    <option value="">{t('upload.countryPlaceholder', lang)}</option>
+                    {COUNTRY_OPTIONS.map((country) => (
+                      <option key={country.code} value={country.code}>
+                        {country.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <div className="mt-3 flex gap-2">
