@@ -2,7 +2,7 @@
 
 import { useLanguage } from '@/lib/LanguageContext';
 import { t } from '@/lib/translations';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import supabase from '@/lib/supabase';
 import { calculateBuyerTotal, formatPrice } from '@/lib/fees';
@@ -15,6 +15,11 @@ export default function MarktPage() {
   const [user, setUser] = useState(null);
 
   const [search, setSearch] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterCity, setFilterCity] = useState('');
+  const [filterVenue, setFilterVenue] = useState('');
+  const [dateFilter, setDateFilter] = useState('all');
+  const [customDate, setCustomDate] = useState('');
   const [showAddEvent, setShowAddEvent] = useState(false);
   const [newEventName, setNewEventName] = useState('');
   const [newEventDate, setNewEventDate] = useState('');
@@ -124,16 +129,107 @@ export default function MarktPage() {
     }
   }
 
-  const filtered = search.trim()
-    ? eventCards.filter(
-        (ev) =>
-          ev.name?.toLowerCase().includes(search.toLowerCase()) ||
-          ev.venue?.toLowerCase().includes(search.toLowerCase()) ||
-          ev.venue_name?.toLowerCase().includes(search.toLowerCase()) ||
-          ev.city?.toLowerCase().includes(search.toLowerCase()) ||
-          ev.country_code?.toLowerCase().includes(search.toLowerCase())
-      )
-    : eventCards;
+  const cityOptions = useMemo(
+    () =>
+      Array.from(new Set(eventCards.map((ev) => ev.city).filter(Boolean))).sort((a, b) =>
+        String(a).localeCompare(String(b), 'nl')
+      ),
+    [eventCards]
+  );
+
+  const venueOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          eventCards
+            .map((ev) => ev.venue_name || ev.venue)
+            .filter(Boolean)
+        )
+      ).sort((a, b) => String(a).localeCompare(String(b), 'nl')),
+    [eventCards]
+  );
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+
+    const startOfDay = (date) => {
+      const d = new Date(date);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    };
+    const endOfDay = (date) => {
+      const d = new Date(date);
+      d.setHours(23, 59, 59, 999);
+      return d;
+    };
+    const parseEventDate = (value) => {
+      if (!value) return null;
+      const d = new Date(value);
+      return Number.isNaN(d.getTime()) ? null : d;
+    };
+    const getWeekendRange = (weekOffset = 0) => {
+      const now = new Date();
+      const today = startOfDay(now);
+      const day = today.getDay();
+      let saturday = new Date(today);
+      if (day === 6) {
+        // today is Saturday
+      } else if (day === 0) {
+        // today is Sunday -> include current weekend
+        saturday.setDate(saturday.getDate() - 1);
+      } else {
+        saturday.setDate(saturday.getDate() + (6 - day));
+      }
+      saturday.setDate(saturday.getDate() + weekOffset * 7);
+      const sunday = new Date(saturday);
+      sunday.setDate(sunday.getDate() + 1);
+      return { start: startOfDay(saturday), end: endOfDay(sunday) };
+    };
+
+    return eventCards
+      .filter((ev) => {
+        if (q) {
+          const matchSearch =
+            ev.name?.toLowerCase().includes(q) ||
+            ev.venue?.toLowerCase().includes(q) ||
+            ev.venue_name?.toLowerCase().includes(q) ||
+            ev.city?.toLowerCase().includes(q) ||
+            ev.country_code?.toLowerCase().includes(q);
+          if (!matchSearch) return false;
+        }
+
+        if (filterCity && String(ev.city || '') !== filterCity) return false;
+
+        const venueLabel = ev.venue_name || ev.venue || '';
+        if (filterVenue && String(venueLabel) !== filterVenue) return false;
+
+        if (dateFilter !== 'all') {
+          const eventDate = parseEventDate(ev.date);
+          if (!eventDate) return false;
+
+          if (dateFilter === 'thisWeekend') {
+            const range = getWeekendRange(0);
+            if (eventDate < range.start || eventDate > range.end) return false;
+          } else if (dateFilter === 'nextWeekend') {
+            const range = getWeekendRange(1);
+            if (eventDate < range.start || eventDate > range.end) return false;
+          } else if (dateFilter === 'custom') {
+            if (!customDate) return false;
+            const custom = parseEventDate(customDate);
+            if (!custom) return false;
+            if (startOfDay(eventDate).getTime() !== startOfDay(custom).getTime()) return false;
+          }
+        }
+
+        return true;
+      })
+      .sort((a, b) => {
+        const aTime = a.date ? new Date(a.date).getTime() : Number.MAX_SAFE_INTEGER;
+        const bTime = b.date ? new Date(b.date).getTime() : Number.MAX_SAFE_INTEGER;
+        if (aTime !== bTime) return aTime - bTime;
+        return String(a.name || '').localeCompare(String(b.name || ''), 'nl');
+      });
+  }, [eventCards, search, filterCity, filterVenue, dateFilter, customDate]);
 
   const showNoResults = search.trim() && filtered.length === 0 && !loading;
 
@@ -200,7 +296,99 @@ export default function MarktPage() {
               placeholder={t('market.searchPlaceholder', lang)}
               className="w-full bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
             />
+            <button
+              type="button"
+              onClick={() => setShowFilters((v) => !v)}
+              className="rounded-full border border-slate-200 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+            >
+              Filter
+            </button>
           </div>
+
+          {showFilters && (
+            <div className="mt-3 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-100 sm:grid-cols-2 lg:grid-cols-5">
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">
+                  Plaats
+                </label>
+                <select
+                  value={filterCity}
+                  onChange={(e) => setFilterCity(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
+                >
+                  <option value="">Alle plaatsen</option>
+                  {cityOptions.map((city) => (
+                    <option key={city} value={city}>
+                      {city}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">
+                  Venue
+                </label>
+                <select
+                  value={filterVenue}
+                  onChange={(e) => setFilterVenue(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
+                >
+                  <option value="">Alle venues</option>
+                  {venueOptions.map((venue) => (
+                    <option key={venue} value={venue}>
+                      {venue}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">
+                  Datum
+                </label>
+                <select
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
+                >
+                  <option value="all">Alle datums</option>
+                  <option value="thisWeekend">Dit weekend</option>
+                  <option value="nextWeekend">Komend weekend</option>
+                  <option value="custom">Custom datum</option>
+                </select>
+              </div>
+
+              {dateFilter === 'custom' && (
+                <div className="space-y-1">
+                  <label className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">
+                    Kies datum
+                  </label>
+                  <input
+                    type="date"
+                    value={customDate}
+                    onChange={(e) => setCustomDate(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
+                  />
+                </div>
+              )}
+
+              <div className="flex items-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilterCity('');
+                    setFilterVenue('');
+                    setDateFilter('all');
+                    setCustomDate('');
+                  }}
+                  className="w-full rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                >
+                  Filters wissen
+                </button>
+              </div>
+            </div>
+          )}
 
           {showNoResults && !showAddEvent && (
             <div className="absolute z-20 mt-2 w-full rounded-2xl border border-slate-200 bg-white p-4 shadow-lg">
