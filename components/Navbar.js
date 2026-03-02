@@ -115,16 +115,18 @@ export default function Navbar() {
     return links;
   }, [lang, loading, user]);
 
+  const normalize = (value) => String(value || '').trim().toLowerCase();
+
   const searchItems = useMemo(() => {
-    const q = headerSearch.trim().toLowerCase();
+    const q = normalize(headerSearch);
     if (!q) return [];
 
     const eventMatches = searchEvents
-      .filter((ev) => ev.name?.toLowerCase().includes(q))
+      .filter((ev) => normalize(ev?.name).includes(q))
       .slice(0, 5)
       .map((ev) => ({
         id: `event-${ev.id}`,
-        label: ev.name,
+        label: String(ev?.name || 'Onbekend event'),
         href: `/markt/${ev.id}`,
         type: 'event',
       }));
@@ -140,7 +142,7 @@ export default function Navbar() {
       }));
 
     const hasExactEvent = searchEvents.some(
-      (ev) => ev.name?.trim().toLowerCase() === q
+      (ev) => normalize(ev?.name) === q
     );
     const addEventItem =
       !hasExactEvent && headerSearch.trim().length >= 2
@@ -207,7 +209,7 @@ export default function Navbar() {
                           onClick={() => handleSearchItemClick(item)}
                           className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-slate-50"
                         >
-                          <span className="text-slate-800">{item.label}</span>
+                      <span className="text-slate-800">{String(item.label || '')}</span>
                           <span className="text-[10px] uppercase tracking-[0.16em] text-slate-400">
                             {item.type === 'event' ? 'Event' : item.type === 'add-event' ? 'Nieuw' : 'Pagina'}
                           </span>
@@ -321,7 +323,7 @@ export default function Navbar() {
                       className="flex items-baseline gap-2 hover:opacity-80 transition-opacity cursor-pointer"
                     >
                       <span className="text-slate-200 tracking-[0.18em] text-[11px]">
-                        {event.name.toUpperCase()}
+                        {String(event?.name || 'ONBEKEND EVENT').toUpperCase()}
                       </span>
                       <span className="font-semibold text-emerald-300">
                         AANBOD {event.price != null ? `€${event.price}` : '—'}
