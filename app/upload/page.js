@@ -74,6 +74,11 @@ const COUNTRY_OPTIONS = [
 });
 
 export default function UploadPage() {
+  const isValidHalfEuroStep = (amount) => {
+    const cents = Math.round(Number(amount) * 100);
+    return Number.isFinite(cents) && cents % 50 === 0;
+  };
+
   const { lang } = useLanguage();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -430,6 +435,10 @@ export default function UploadPage() {
       setErrorMessage(t('upload.errInvalidPrice', lang));
       return;
     }
+    if (!isValidHalfEuroStep(numericPrice)) {
+      setErrorMessage(t('upload.errInvalidStep', lang));
+      return;
+    }
 
     setSavingAskPrice(true);
     setErrorMessage('');
@@ -744,6 +753,9 @@ export default function UploadPage() {
             </h2>
             <p className="text-xs text-slate-500">
               {t('upload.setPriceSub', lang)}
+            </p>
+            <p className="text-[11px] text-slate-400">
+              {t('upload.tickSizeHint', lang)}
             </p>
             <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
               <div className="relative w-full max-w-xs">

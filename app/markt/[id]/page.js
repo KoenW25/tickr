@@ -10,6 +10,11 @@ import { calculateBuyerTotal, calculateServiceFee, formatPrice } from '@/lib/fee
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
 export default function EventDetailPage() {
+  const isValidHalfEuroStep = (amount) => {
+    const cents = Math.round(Number(amount) * 100);
+    return Number.isFinite(cents) && cents % 50 === 0;
+  };
+
   const { lang } = useLanguage();
   const { id: eventId } = useParams();
   const router = useRouter();
@@ -126,12 +131,22 @@ export default function EventDetailPage() {
       return;
     }
 
+    if (isExpired) {
+      setBidError(t('event.bidExpiredError', lang));
+      setBidSuccess('');
+      return;
+    }
+
     const numeric = Number(
       String(bidAmount).replace(',', '.').replace(/[^0-9.]/g, '')
     );
 
     if (!Number.isFinite(numeric) || numeric <= 0) {
       setBidError(t('event.invalidAmount', lang));
+      return;
+    }
+    if (!isValidHalfEuroStep(numeric)) {
+      setBidError(t('event.invalidStep', lang));
       return;
     }
 
@@ -195,6 +210,33 @@ export default function EventDetailPage() {
   const cheapestTicket = tickets.find((tk) => Number(tk.ask_price) === lowestAsk);
   const highestBid = bids.length > 0 ? Number(bids[0].bid_price) : null;
   const spread = lowestAsk != null && highestBid != null ? lowestAsk - highestBid : null;
+  const groupedBids = Object.values(
+    bids.reduce((acc, bid) => {
+      const bidPrice = Number(bid.bid_price);
+      if (!Number.isFinite(bidPrice)) return acc;
+      const key = bidPrice.toFixed(2);
+      if (!acc[key]) {
+        acc[key] = { bidPrice, count: 0 };
+      }
+      acc[key].count += 1;
+      return acc;
+    }, {})
+  ).sort((a, b) => b.bidPrice - a.bidPrice);
+  const maxGroupedBidCount = groupedBids.length > 0
+    ? Math.max(...groupedBids.map((entry) => entry.count))
+    : 0;
+  const groupedAsks = Object.values(
+    tickets.reduce((acc, ticket) => {
+      const askPrice = Number(ticket.ask_price);
+      if (!Number.isFinite(askPrice)) return acc;
+      const key = askPrice.toFixed(2);
+      if (!acc[key]) {
+        acc[key] = { askPrice, count: 0 };
+      }
+      acc[key].count += 1;
+      return acc;
+    }, {})
+  ).sort((a, b) => a.askPrice - b.askPrice);
 
   const isExpired = event.date && new Date(event.date) < new Date(new Date().toDateString());
 
@@ -337,34 +379,31 @@ export default function EventDetailPage() {
             {/* BID zijde (links) */}
             <div>
               <div className="grid grid-cols-2 border-b border-slate-100 px-4 py-2 text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
-                <span>{t('event.time', lang)}</span>
-                <span className="text-right">{t('event.bidLabel', lang)}</span>
+                <span>{t('event.bidLabel', lang)}</span>
+                <span className="text-right">Volume</span>
               </div>
-              {bids.length === 0 ? (
+              {groupedBids.length === 0 ? (
                 <div className="px-4 py-8 text-center text-xs text-slate-400">
                   {t('event.noBids', lang)}
                 </div>
               ) : (
                 <div className="max-h-80 overflow-y-auto">
-                  {bids.map((bid) => {
-                    const depthPct = lowestAsk && lowestAsk > 0
-                      ? Math.round((Number(bid.bid_price) / lowestAsk) * 100)
+                  {groupedBids.map((entry) => {
+                    const depthPct = maxGroupedBidCount > 0
+                      ? Math.round((entry.count / maxGroupedBidCount) * 100)
                       : 50;
                     return (
-                      <div key={bid.id} className="relative">
+                      <div key={entry.bidPrice} className="relative">
                         <div
                           className="absolute inset-y-0 right-0 bg-emerald-50"
                           style={{ width: `${Math.min(depthPct, 100)}%` }}
                         />
                         <div className="relative grid grid-cols-2 px-4 py-1.5 text-xs">
-                          <span className="text-slate-400">
-                            {new Date(bid.created_at).toLocaleTimeString('nl-NL', {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
+                          <span className="font-semibold text-emerald-700">
+                            € {formatPrice(entry.bidPrice)}
                           </span>
-                          <span className="text-right font-semibold text-emerald-700">
-                            € {formatPrice(bid.bid_price)}
+                          <span className="text-right text-emerald-600">
+                            {entry.count}x
                           </span>
                         </div>
                       </div>
@@ -378,23 +417,23 @@ export default function EventDetailPage() {
             <div>
               <div className="grid grid-cols-2 border-b border-slate-100 px-4 py-2 text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
                 <span>{t('event.askLabel', lang)}</span>
-                <span className="text-right">{t('event.inclFees', lang)}</span>
+                <span className="text-right">Volume</span>
               </div>
-              {tickets.length === 0 ? (
+              {groupedAsks.length === 0 ? (
                 <div className="px-4 py-8 text-center text-xs text-slate-400">
                   {t('event.noSupply', lang)}
                 </div>
               ) : (
                 <div className="max-h-80 overflow-y-auto">
-                  {tickets.map((tk) => (
-                    <div key={tk.id} className="relative">
+                  {groupedAsks.map((entry) => (
+                    <div key={entry.askPrice} className="relative">
                       <div className="absolute inset-y-0 left-0 bg-rose-50" style={{ width: '100%' }} />
                       <div className="relative grid grid-cols-2 px-4 py-1.5 text-xs">
                         <span className="font-semibold text-rose-700">
-                          € {formatPrice(tk.ask_price)}
+                          € {formatPrice(entry.askPrice)}
                         </span>
-                        <span className="text-right text-rose-500">
-                          € {formatPrice(calculateBuyerTotal(Number(tk.ask_price)))}
+                        <span className="text-right text-rose-600">
+                          {entry.count}x
                         </span>
                       </div>
                     </div>
@@ -450,7 +489,10 @@ export default function EventDetailPage() {
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-100">
             <h3 className="text-sm font-semibold text-slate-900">{t('event.placeBid', lang)}</h3>
             <p className="mt-1 text-xs text-slate-500">
-              {t('event.placeBidDesc', lang)}
+              {isExpired ? t('event.bidExpiredError', lang) : t('event.placeBidDesc', lang)}
+            </p>
+            <p className="mt-1 text-[11px] text-slate-400">
+              {t('event.tickSizeHint', lang)}
             </p>
             <div className="relative mt-3">
               <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-xs text-slate-400">
@@ -462,6 +504,7 @@ export default function EventDetailPage() {
                 value={bidAmount}
                 onChange={(e) => setBidAmount(e.target.value)}
                 placeholder={t('event.bidPlaceholder', lang)}
+                disabled={isExpired}
                 className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-7 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
               />
             </div>
@@ -472,7 +515,7 @@ export default function EventDetailPage() {
             <button
               type="button"
               onClick={handleSubmitBid}
-              disabled={submitting}
+              disabled={submitting || isExpired}
               className="mt-3 w-full rounded-full bg-sky-500 px-4 py-2.5 text-xs font-semibold text-white shadow-sm shadow-sky-500/30 hover:bg-sky-400 disabled:opacity-60"
             >
               {submitting ? t('event.submitting', lang) : t('event.placeBid', lang)}
