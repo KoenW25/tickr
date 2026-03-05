@@ -528,7 +528,12 @@ function EventCard({ event, lang }) {
 
         <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
           <div className="rounded-xl bg-rose-50 p-3 ring-1 ring-rose-100">
-            <p className="uppercase tracking-[0.18em] text-rose-600">{t('market.ask', lang)}</p>
+            <p className="uppercase tracking-[0.18em] text-rose-600">
+              <span>{t('market.ask', lang)}</span>{' '}
+              <span className="text-[9px] normal-case tracking-normal text-rose-400">
+                ({t('market.askDetail', lang)})
+              </span>
+            </p>
             <p className="mt-1 text-sm font-semibold text-rose-700">
               {event.lowestAsk != null ? `€ ${formatPrice(event.lowestAsk)}` : '—'}
             </p>
@@ -537,7 +542,12 @@ function EventCard({ event, lang }) {
             </p>
           </div>
           <div className="rounded-xl bg-sky-50 p-3 ring-1 ring-sky-100">
-            <p className="uppercase tracking-[0.18em] text-sky-600">{t('market.bid', lang)}</p>
+            <p className="uppercase tracking-[0.18em] text-sky-600">
+              <span>{t('market.bid', lang)}</span>{' '}
+              <span className="text-[9px] normal-case tracking-normal text-sky-400">
+                ({t('market.bidDetail', lang)})
+              </span>
+            </p>
             <p className="mt-1 text-sm font-semibold text-sky-700">
               {event.highestBid != null ? `€ ${formatPrice(event.highestBid)}` : '—'}
             </p>
