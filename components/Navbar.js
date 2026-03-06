@@ -44,10 +44,19 @@ export default function Navbar() {
     async function fetchTickerData() {
       const { data: events, error } = await supabase
         .from('events')
-        .select('id, name')
+        .select('id, name, date')
         .order('date', { ascending: true });
 
       if (error || !events || events.length === 0) return;
+
+      const today = new Date(new Date().toDateString());
+      const isNotExpired = (value) => {
+        if (!value) return true;
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) return true;
+        return parsed >= today;
+      };
+      const tickerSourceEvents = events.filter((ev) => isNotExpired(ev?.date));
 
       const { data: tickets } = await supabase
         .from('tickets')
@@ -62,7 +71,7 @@ export default function Navbar() {
         priceMap[ticket.event_id].push(Number(ticket.ask_price));
       }
 
-      const eventIds = events.map((e) => e.id);
+      const eventIds = tickerSourceEvents.map((e) => e.id);
       const { data: bidsData } = await supabase
         .from('bids')
         .select('event_id, bid_price')
@@ -77,7 +86,7 @@ export default function Navbar() {
         }
       }
 
-      const enriched = events.map((ev) => {
+      const enriched = tickerSourceEvents.map((ev) => {
         const prices = priceMap[ev.id] || [];
         const lowestPrice = prices.length > 0 ? Math.min(...prices) : null;
         const highestBid = bidMap[ev.id] ?? null;
@@ -93,7 +102,7 @@ export default function Navbar() {
       if (!tickerPausedRef.current) {
         setTickerEvents(enriched);
       }
-      setSearchEvents(events);
+      setSearchEvents((events ?? []).map(({ id, name }) => ({ id, name })));
     }
 
     fetchTickerData();
