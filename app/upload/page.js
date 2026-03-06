@@ -107,7 +107,9 @@ export default function UploadPage() {
   const [newEventCountry, setNewEventCountry] = useState('');
   const [addingEvent, setAddingEvent] = useState(false);
 
-  const [ticketId, setTicketId] = useState(null);
+  const [ticketIds, setTicketIds] = useState([]);
+  const [detectedTickets, setDetectedTickets] = useState([]);
+  const [verificationState, setVerificationState] = useState(null);
   const [askPrice, setAskPrice] = useState('');
   const [savingAskPrice, setSavingAskPrice] = useState(false);
 
@@ -192,12 +194,18 @@ export default function UploadPage() {
     setSelectedEvent(event);
     setEventSearch(event.name);
     setShowDropdown(false);
+    setTicketIds([]);
+    setDetectedTickets([]);
+    setVerificationState(null);
   };
 
   const handleEventInputChange = (value) => {
     setEventSearch(value);
     setSelectedEvent(null);
     setShowDropdown(true);
+    setTicketIds([]);
+    setDetectedTickets([]);
+    setVerificationState(null);
   };
 
   const handleOpenAddEvent = () => {
@@ -294,7 +302,9 @@ export default function UploadPage() {
     const selectedFile = event.target.files?.[0];
     setSuccessMessage('');
     setErrorMessage('');
-    setTicketId(null);
+    setTicketIds([]);
+    setDetectedTickets([]);
+    setVerificationState(null);
 
     if (!selectedFile) {
       setFile(null);
@@ -320,6 +330,16 @@ export default function UploadPage() {
     setFileName(selectedFile.name);
   };
 
+  const toggleDetectedTicket = (barcodeData) => {
+    setDetectedTickets((prev) =>
+      prev.map((ticket) =>
+        ticket.barcodeData === barcodeData
+          ? { ...ticket, selected: !ticket.selected }
+          : ticket
+      )
+    );
+  };
+
   const handleAnalyseTicket = async () => {
     if (!user) {
       setErrorMessage('Je moet ingelogd zijn om een ticket te uploaden.');
@@ -339,13 +359,84 @@ export default function UploadPage() {
     setUploading(true);
     setErrorMessage('');
     setSuccessMessage('');
+    setTicketIds([]);
+    setDetectedTickets([]);
+    setVerificationState(null);
 
     try {
       const verification = await verifyTicketFile(file);
       const verifiedStatus = verification?.verified || 'pending';
       const barcodeData = verification?.barcodeData || null;
       const verificationWarning = verification?.warning || '';
+      const detectedTickets = Array.isArray(verification?.tickets) ? verification.tickets : [];
+      const normalizedDetectedTickets = detectedTickets.map((ticket) => ({
+        page: ticket.page,
+        barcodeData: ticket.barcodeData,
+        status: ticket.status,
+        selected: ticket.status === 'verified',
+      }));
+      setDetectedTickets(normalizedDetectedTickets);
+      setVerificationState({ verifiedStatus, barcodeData, verificationWarning });
 
+      if (normalizedDetectedTickets.length > 0) {
+        const uploadableCount = normalizedDetectedTickets.filter(
+          (ticket) => ticket.status === 'verified'
+        ).length;
+        if (uploadableCount > 0) {
+          setSuccessMessage(
+            `Analyse voltooid: ${uploadableCount} ticket${uploadableCount !== 1 ? 's' : ''} klaar om te uploaden.`
+          );
+        } else {
+          setErrorMessage('Alle gevonden tickets bestaan al op Tckr.');
+        }
+      } else {
+        setSuccessMessage(
+          verificationWarning ||
+            'Analyse voltooid. We hebben geen barcode gevonden, je kunt het ticket als pending uploaden.'
+        );
+      }
+    } catch (error) {
+      console.error('Upload error:', error?.message || error?.toString?.() || JSON.stringify(error));
+      setErrorMessage(`Er ging iets mis: ${error?.message || 'Onbekende fout. Controleer of de kolommen event_name en event_date bestaan in de tickets tabel.'}`);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleUploadSelectedTickets = async () => {
+    if (!user) {
+      setErrorMessage('Je moet ingelogd zijn om een ticket te uploaden.');
+      return;
+    }
+    if (!selectedEvent) {
+      setErrorMessage('Kies een event uit de lijst.');
+      return;
+    }
+    if (!file) {
+      setErrorMessage('Selecteer eerst een PDF-bestand.');
+      return;
+    }
+    if (!verificationState) {
+      setErrorMessage('Analyseer eerst je ticketbestand.');
+      return;
+    }
+
+    const selectedVerifiedTickets = detectedTickets.filter(
+      (ticket) => ticket.status === 'verified' && ticket.selected
+    );
+    const hasDetectedTicketCandidates = detectedTickets.some(
+      (ticket) => ticket.status === 'verified'
+    );
+    if (hasDetectedTicketCandidates && selectedVerifiedTickets.length === 0) {
+      setErrorMessage('Selecteer minimaal 1 ticket om te uploaden.');
+      return;
+    }
+
+    setUploading(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    try {
       const timestamp = Date.now();
       const safeName = file.name.replace(/\s+/g, '-');
       const path = `${user.id}/${timestamp}-${safeName}`;
@@ -378,35 +469,57 @@ export default function UploadPage() {
         }
       }
 
+      const ticketRowsToInsert =
+        selectedVerifiedTickets.length > 0
+          ? selectedVerifiedTickets.map((ticket) => ({
+              user_id: user.id,
+              pdf_url: pdfUrl,
+              event_id: selectedEvent.id,
+              event_name: selectedEvent.name,
+              event_date: eventDate,
+              status: 'available',
+              ask_price: null,
+              barcode_data: ticket.barcodeData,
+              verified: 'verified',
+            }))
+          : [
+              {
+                user_id: user.id,
+                pdf_url: pdfUrl,
+                event_id: selectedEvent.id,
+                event_name: selectedEvent.name,
+                event_date: eventDate,
+                status: 'available',
+                ask_price: null,
+                barcode_data:
+                  verificationState.verifiedStatus === 'verified'
+                    ? verificationState.barcodeData
+                    : null,
+                verified: verificationState.verifiedStatus,
+              },
+            ];
+
       const { data: insertData, error: insertError } = await supabase
         .from('tickets')
-        .insert({
-          user_id: user.id,
-          pdf_url: pdfUrl,
-          event_id: selectedEvent.id,
-          event_name: selectedEvent.name,
-          event_date: eventDate,
-          status: 'available',
-          ask_price: null,
-          barcode_data: barcodeData,
-          verified: verifiedStatus,
-        })
-        .select('id')
-        .single();
+        .insert(ticketRowsToInsert)
+        .select('id');
 
       if (insertError) {
         throw insertError;
       }
 
-      setTicketId(insertData.id);
+      const insertedTicketIds = (insertData ?? []).map((row) => row.id).filter(Boolean);
+      setTicketIds(insertedTicketIds);
       setSuccessMessage(
-        verificationWarning
-          ? `Je ticket is geüpload! ${verificationWarning}`
-          : 'Je ticket is geüpload! Stel nu je vraagprijs in.'
+        verificationState.verificationWarning
+          ? `Je tickets zijn geüpload! ${verificationState.verificationWarning}`
+          : `Je ${insertedTicketIds.length > 1 ? `${insertedTicketIds.length} tickets zijn` : 'ticket is'} geüpload. Stel nu je vraagprijs in.`
       );
     } catch (error) {
       console.error('Upload error:', error?.message || error?.toString?.() || JSON.stringify(error));
-      setErrorMessage(`Er ging iets mis: ${error?.message || 'Onbekende fout. Controleer of de kolommen event_name en event_date bestaan in de tickets tabel.'}`);
+      setErrorMessage(
+        `Er ging iets mis: ${error?.message || 'Onbekende fout. Controleer of de kolommen event_name en event_date bestaan in de tickets tabel.'}`
+      );
     } finally {
       setUploading(false);
     }
@@ -414,10 +527,10 @@ export default function UploadPage() {
 
   const handleSaveAskPrice = async () => {
     console.log('handleSaveAskPrice called', {
-      ticketId,
+      ticketIds,
       askPrice,
     });
-    if (!ticketId) {
+    if (!ticketIds.length) {
       setErrorMessage(t('upload.errNoTicket', lang));
       return;
     }
@@ -447,7 +560,7 @@ export default function UploadPage() {
       const { error: updateError } = await supabase
         .from('tickets')
         .update({ ask_price: numericPrice })
-        .eq('id', ticketId);
+        .in('id', ticketIds);
 
       if (updateError) {
         throw updateError;
@@ -455,7 +568,7 @@ export default function UploadPage() {
 
       setSuccessMessage(t('upload.savedToListed', lang));
       console.log('ask_price update succeeded for ticket', {
-        ticketId,
+        ticketIds,
         askPrice: numericPrice,
       });
       router.push('/dashboard');
@@ -745,14 +858,85 @@ export default function UploadPage() {
           </button>
         </div>
 
+        {verificationState && (
+          <section className="mt-4 space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-100">
+            <h2 className="text-sm font-semibold text-slate-900">
+              Gevonden tickets
+            </h2>
+            {detectedTickets.length === 0 ? (
+              <p className="text-xs text-slate-500">
+                Geen barcode gevonden. Je kunt dit PDF-ticket als pending uploaden.
+              </p>
+            ) : (
+              <>
+                <p className="text-xs text-slate-500">
+                  Selecteer welke tickets je online wilt zetten.
+                </p>
+                <div className="space-y-2">
+                  {detectedTickets.map((ticket) => {
+                    const isDuplicate = ticket.status === 'duplicate';
+                    return (
+                      <label
+                        key={ticket.barcodeData}
+                        className={`flex items-center justify-between rounded-xl border px-3 py-2 text-xs ${
+                          isDuplicate
+                            ? 'border-slate-200 bg-slate-50 text-slate-400'
+                            : 'border-slate-200 bg-white text-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(ticket.selected)}
+                            onChange={() => toggleDetectedTicket(ticket.barcodeData)}
+                            disabled={isDuplicate}
+                            className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                          />
+                          <div>
+                            <p className="font-medium text-slate-900">Pagina {ticket.page}</p>
+                            <p className="text-[11px] text-slate-500">
+                              {ticket.barcodeData}
+                            </p>
+                          </div>
+                        </div>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                            isDuplicate
+                              ? 'bg-slate-200 text-slate-500'
+                              : 'bg-emerald-100 text-emerald-700'
+                          }`}
+                        >
+                          {isDuplicate ? 'Al geüpload' : 'Klaar voor upload'}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={handleUploadSelectedTickets}
+                disabled={uploading}
+                className="rounded-full bg-emerald-500 px-6 py-2.5 text-sm font-semibold text-white shadow-sm shadow-emerald-500/30 hover:bg-emerald-400 disabled:opacity-60"
+              >
+                {uploading ? 'Bezig met uploaden...' : 'Upload geselecteerde tickets'}
+              </button>
+            </div>
+          </section>
+        )}
+
         {/* Vraagprijs invullen na upload */}
-        {ticketId && (
+        {ticketIds.length > 0 && (
           <section className="mt-8 space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-100">
             <h2 className="text-sm font-semibold text-slate-900">
               {t('upload.setPrice', lang)}
             </h2>
             <p className="text-xs text-slate-500">
-              {t('upload.setPriceSub', lang)}
+              {ticketIds.length > 1
+                ? `Je stelt deze vraagprijs in voor ${ticketIds.length} tickets tegelijk.`
+                : t('upload.setPriceSub', lang)}
             </p>
             <p className="text-[11px] text-slate-400">
               {t('upload.tickSizeHint', lang)}

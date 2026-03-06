@@ -62,9 +62,10 @@ function decodeBarcodeFromPngBuffer(pngBuffer) {
   }
 }
 
-async function decodeBarcodeFromPdf(pdfBuffer, pageCount) {
-  const pagesToScan = Math.min(pageCount, 3);
+async function decodeBarcodesFromPdf(pdfBuffer, pageCount) {
+  const pagesToScan = Math.min(pageCount, 25);
   const densities = [200, 300];
+  const detectionsByPage = new Map();
 
   for (const density of densities) {
     const converter = fromBuffer(pdfBuffer, {
@@ -77,17 +78,30 @@ async function decodeBarcodeFromPdf(pdfBuffer, pageCount) {
     });
 
     for (let page = 1; page <= pagesToScan; page++) {
+      if (detectionsByPage.has(page)) continue;
+
       const converted = await converter(page, { responseType: 'base64' });
       const base64 = extractBase64Payload(converted?.base64 || null);
       if (!base64) continue;
 
       const pngBuffer = Buffer.from(base64, 'base64');
       const barcodeData = decodeBarcodeFromPngBuffer(pngBuffer);
-      if (barcodeData) return barcodeData;
+      if (barcodeData) {
+        detectionsByPage.set(page, barcodeData);
+      }
     }
   }
 
-  return null;
+  const seenBarcodes = new Set();
+  const uniqueDetections = [];
+  for (const [page, barcodeData] of [...detectionsByPage.entries()].sort((a, b) => a[0] - b[0])) {
+    const normalized = String(barcodeData || '').trim();
+    if (!normalized || seenBarcodes.has(normalized)) continue;
+    seenBarcodes.add(normalized);
+    uniqueDetections.push({ page, barcodeData: normalized });
+  }
+
+  return uniqueDetections;
 }
 
 export async function POST(request) {
@@ -150,9 +164,9 @@ export async function POST(request) {
       );
     }
 
-    let barcodeData = null;
+    let detectedTickets = [];
     try {
-      barcodeData = await decodeBarcodeFromPdf(pdfBuffer, pageCount);
+      detectedTickets = await decodeBarcodesFromPdf(pdfBuffer, pageCount);
     } catch (decodeError) {
       console.error('[Ticket Verify] Barcode detectie fout:', decodeError);
       return Response.json(
@@ -164,11 +178,12 @@ export async function POST(request) {
       );
     }
 
-    if (!barcodeData) {
+    if (!detectedTickets.length) {
       return Response.json(
         {
           verified: 'pending',
           barcodeData: null,
+          tickets: [],
           warning:
             'Geen barcode of QR-code gedetecteerd. Ticket is geüpload met status pending en kan later handmatig gecontroleerd worden.',
         },
@@ -176,12 +191,11 @@ export async function POST(request) {
       );
     }
 
-    const { data: existingTicket, error: dupError } = await supabaseService
+    const detectedBarcodes = detectedTickets.map((entry) => entry.barcodeData);
+    const { data: existingTickets, error: dupError } = await supabaseService
       .from('tickets')
-      .select('id')
-      .eq('barcode_data', barcodeData)
-      .limit(1)
-      .maybeSingle();
+      .select('id, barcode_data')
+      .in('barcode_data', detectedBarcodes);
 
     if (dupError) {
       console.error('[Ticket Verify] Duplicate check error:', dupError);
@@ -191,9 +205,22 @@ export async function POST(request) {
       );
     }
 
-    if (existingTicket) {
+    const existingBarcodeSet = new Set(
+      (existingTickets ?? []).map((ticket) => String(ticket.barcode_data || ''))
+    );
+
+    const resolvedTickets = detectedTickets.map((ticket) => ({
+      ...ticket,
+      status: existingBarcodeSet.has(ticket.barcodeData) ? 'duplicate' : 'verified',
+    }));
+
+    const hasUploadableTicket = resolvedTickets.some((ticket) => ticket.status === 'verified');
+    if (!hasUploadableTicket) {
       return Response.json(
-        { error: 'Dit ticket is al eerder geüpload op Tckr.' },
+        {
+          error: 'Alle gedetecteerde tickets zijn al eerder geüpload op Tckr.',
+          tickets: resolvedTickets,
+        },
         { status: 409 }
       );
     }
@@ -201,7 +228,8 @@ export async function POST(request) {
     return Response.json(
       {
         verified: 'verified',
-        barcodeData,
+        barcodeData: resolvedTickets[0]?.barcodeData || null,
+        tickets: resolvedTickets,
       },
       { status: 200 }
     );
