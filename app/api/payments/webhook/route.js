@@ -146,6 +146,7 @@ export async function POST(request) {
     if (payment.status === 'paid') {
       const ticketId = payment.metadata?.ticketId;
       const buyerId = payment.metadata?.buyerId;
+      const privateBuyerEmail = payment.metadata?.privateBuyerEmail || null;
 
       if (!ticketId) {
         console.error('[Mollie Webhook] No ticketId in payment metadata');
@@ -201,23 +202,25 @@ export async function POST(request) {
           }
 
           // Send buyer confirmation email
-          if (buyerUserId) {
-            const buyerEmail = await getUserEmailById(buyerUserId);
-            if (buyerEmail) {
-              const signedPdfUrl = await createTicketSignedUrl(
-                ticket.pdf_url || null,
-                ticket.event_date || null
-              );
-              await sendBuyerConfirmationEmail(
-                buyerEmail,
-                eventName,
-                totalAmount,
-                signedPdfUrl
-              );
-              console.log('[Mollie Webhook] Buyer confirmation email sent to', buyerEmail);
-            } else {
-              console.warn('[Mollie Webhook] Could not resolve buyer email for', buyerUserId);
-            }
+          const buyerEmail = buyerUserId
+            ? await getUserEmailById(buyerUserId)
+            : privateBuyerEmail;
+          if (buyerEmail) {
+            const signedPdfUrl = await createTicketSignedUrl(
+              ticket.pdf_url || null,
+              ticket.event_date || null
+            );
+            await sendBuyerConfirmationEmail(
+              buyerEmail,
+              eventName,
+              totalAmount,
+              signedPdfUrl
+            );
+            console.log('[Mollie Webhook] Buyer confirmation email sent to', buyerEmail);
+          } else if (buyerUserId) {
+            console.warn('[Mollie Webhook] Could not resolve buyer email for', buyerUserId);
+          } else {
+            console.warn('[Mollie Webhook] No buyer email available for payment', paymentId);
           }
 
           // Send seller notification email
