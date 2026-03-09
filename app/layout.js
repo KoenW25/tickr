@@ -17,8 +17,30 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Tckr – De eerlijke markt voor tickets",
-  description: "Koop en verkoop tickets voor live events op een eerlijke en transparante manier.",
+  metadataBase: new URL("https://tckr.nl"),
+  title: "Tckr — De online markt voor tickets",
+  description: "Koop en verkoop tickets voor events. Eerlijke prijzen, geverifieerde tickets.",
+  openGraph: {
+    title: "Tckr — De online markt voor tickets",
+    description: "Koop en verkoop tickets voor events. Eerlijke prijzen, geverifieerde tickets.",
+    url: "https://tckr.nl",
+    siteName: "Tckr",
+    type: "website",
+    images: [
+      {
+        url: "/og-image",
+        width: 1200,
+        height: 630,
+        alt: "Tckr logo",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Tckr — De online markt voor tickets",
+    description: "Koop en verkoop tickets voor events. Eerlijke prijzen, geverifieerde tickets.",
+    images: ["/og-image"],
+  },
 };
 
 export default function RootLayout({ children }) {
