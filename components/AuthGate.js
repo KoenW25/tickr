@@ -3,25 +3,13 @@
 import { usePathname } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 
-const PUBLIC_PATHS = [
-  '/',
-  '/markt',
-  '/hoe-het-werkt',
-  '/voorwaarden',
-  '/privacy',
-  '/sitemap.xml',
-  '/robots.txt',
-  '/login',
-  '/auth',
-  '/favicon.ico',
-];
+const HIDE_NAVBAR_PATHS = ['/login', '/auth'];
 
 export default function AuthGate({ children }) {
   const pathname = usePathname();
+  const hideNavbar = HIDE_NAVBAR_PATHS.some((path) => pathname.startsWith(path));
 
-  const isPublic = PUBLIC_PATHS.some((p) => (p === '/' ? pathname === '/' : pathname.startsWith(p)));
-  if (isPublic) return children;
-
+  if (hideNavbar) return children;
   return (
     <>
       <Navbar />
