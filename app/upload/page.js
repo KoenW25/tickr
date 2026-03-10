@@ -130,20 +130,35 @@ function UploadPageContent() {
   const [savingAskPrice, setSavingAskPrice] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+
     async function fetchUser() {
       try {
-        const { data, error } = await supabase.auth.getUser();
-        if (error || !data.user) {
-          router.replace('/login');
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (session?.user) {
+          if (isMounted) setUser(session.user);
           return;
         }
-        setUser(data.user);
+
+        const { data, error } = await supabase.auth.getUser();
+        if (error || !data.user) {
+          router.replace('/login?next=/upload');
+          return;
+        }
+        if (isMounted) setUser(data.user);
       } finally {
-        setCheckingAuth(false);
+        if (isMounted) setCheckingAuth(false);
       }
     }
 
     fetchUser();
+
+    return () => {
+      isMounted = false;
+    };
   }, [router]);
 
   useEffect(() => {

@@ -53,6 +53,12 @@ export async function POST(request) {
 
     if (upsertError) {
       console.error('[Event Subscribe] Upsert failed:', upsertError);
+      if (upsertError.code === '42P01') {
+        return Response.json(
+          { error: 'Aanmelden lukt nog niet: database-migratie voor meldingen ontbreekt.' },
+          { status: 500 }
+        );
+      }
       return Response.json({ error: 'Aanmelden voor meldingen mislukt.' }, { status: 500 });
     }
 

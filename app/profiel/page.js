@@ -1,11 +1,46 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/lib/LanguageContext';
 import { t } from '@/lib/translations';
+import supabase from '@/lib/supabase';
 
 export default function ProfielPage() {
   const { lang } = useLanguage();
+  const router = useRouter();
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function checkUser() {
+      const { data } = await supabase.auth.getUser();
+      if (!isMounted) return;
+
+      if (!data?.user) {
+        router.replace('/login?next=/profiel');
+        return;
+      }
+
+      setCheckingAuth(false);
+    }
+
+    checkUser();
+    return () => {
+      isMounted = false;
+    };
+  }, [router]);
+
+  if (checkingAuth) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <p className="text-sm text-slate-500">Even laden...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">

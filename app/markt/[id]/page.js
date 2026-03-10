@@ -319,12 +319,24 @@ export default function EventDetailPage() {
               )}
             </div>
             {!isExpired && (
-              <Link
-                href={`/upload?eventId=${eventId}`}
-                className="shrink-0 rounded-full bg-emerald-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-emerald-500/30 transition hover:bg-emerald-400"
-              >
-                {t('nav.sell', lang)}
-              </Link>
+              <div className="flex shrink-0 items-center gap-2">
+                {lowestAsk == null && (
+                  <button
+                    type="button"
+                    onClick={handleNotifyOnAvailability}
+                    disabled={notifyLoading}
+                    className="rounded-full border border-violet-200 bg-violet-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-violet-700 transition hover:border-violet-300 hover:bg-violet-100 disabled:opacity-60"
+                  >
+                    {notifyLoading ? 'Bezig...' : 'Mail bij aanbod'}
+                  </button>
+                )}
+                <Link
+                  href={`/upload?eventId=${eventId}`}
+                  className="rounded-full bg-emerald-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-emerald-500/30 transition hover:bg-emerald-400"
+                >
+                  {t('nav.sell', lang)}
+                </Link>
+              </div>
             )}
           </div>
           <div className="mt-1 flex items-center gap-2 text-sm text-slate-500">
@@ -332,6 +344,9 @@ export default function EventDetailPage() {
             {formattedDate && locationText && <span className="text-slate-300">·</span>}
             {locationText && <span>{locationText}</span>}
           </div>
+          {notifyMessage && lowestAsk == null && (
+            <p className="mt-2 text-xs text-slate-500">{notifyMessage}</p>
+          )}
         </header>
 
         {/* Spread overview */}
@@ -539,21 +554,6 @@ export default function EventDetailPage() {
               <p className="mt-3 text-xs text-slate-400">
                 {t('event.noTicketsYet', lang)}
               </p>
-            )}
-            {lowestAsk == null && (
-              <div className="mt-3">
-                <button
-                  type="button"
-                  onClick={handleNotifyOnAvailability}
-                  disabled={notifyLoading}
-                  className="w-full rounded-full border border-violet-200 bg-violet-50 px-4 py-2.5 text-xs font-semibold text-violet-700 hover:border-violet-300 hover:bg-violet-100 disabled:opacity-60"
-                >
-                  {notifyLoading ? 'Bezig met aanmelden...' : 'Mail mij zodra er aanbod is'}
-                </button>
-                {notifyMessage && (
-                  <p className="mt-2 text-xs text-slate-500">{notifyMessage}</p>
-                )}
-              </div>
             )}
           </div>
 

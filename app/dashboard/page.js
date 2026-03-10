@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/lib/LanguageContext';
 import { t } from '@/lib/translations';
 import supabase from '@/lib/supabase';
 
 export default function DashboardPage() {
   const { lang } = useLanguage();
+  const router = useRouter();
   const [user, setUser] = useState(null);
   const [loadingUser, setLoadingUser] = useState(true);
 
@@ -48,6 +50,12 @@ export default function DashboardPage() {
     }
     fetchUser();
   }, []);
+
+  useEffect(() => {
+    if (!loadingUser && !user) {
+      router.replace('/login?next=/dashboard');
+    }
+  }, [loadingUser, user, router]);
 
   // Seller tickets
   useEffect(() => {
