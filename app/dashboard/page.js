@@ -31,6 +31,10 @@ export default function DashboardPage() {
   const [loadingMyBids, setLoadingMyBids] = useState(true);
   const [deletingBidId, setDeletingBidId] = useState(null);
   const [myBidsError, setMyBidsError] = useState('');
+  const [alertSubscriptions, setAlertSubscriptions] = useState([]);
+  const [loadingAlertSubscriptions, setLoadingAlertSubscriptions] = useState(true);
+  const [alertSubscriptionsError, setAlertSubscriptionsError] = useState('');
+  const [unsubscribingEventId, setUnsubscribingEventId] = useState(null);
 
   const [activeTab, setActiveTab] = useState('overzicht');
 
@@ -100,6 +104,50 @@ export default function DashboardPage() {
       }
     }
     fetchSellerTickets();
+  }, [user]);
+
+  // Event alerts subscriptions
+  useEffect(() => {
+    async function fetchAlertSubscriptions() {
+      if (!user) {
+        setAlertSubscriptions([]);
+        setLoadingAlertSubscriptions(false);
+        return;
+      }
+
+      setLoadingAlertSubscriptions(true);
+      setAlertSubscriptionsError('');
+
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+          setAlertSubscriptionsError('Je sessie is verlopen. Log opnieuw in.');
+          return;
+        }
+
+        const response = await fetch('/api/events/availability-subscriptions', {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
+        const json = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          setAlertSubscriptionsError(json?.error || 'Meldingen ophalen mislukt.');
+          return;
+        }
+
+        setAlertSubscriptions(Array.isArray(json?.subscriptions) ? json.subscriptions : []);
+      } catch (err) {
+        console.error('Error fetching alert subscriptions:', err);
+        setAlertSubscriptionsError('Meldingen ophalen mislukt.');
+      } finally {
+        setLoadingAlertSubscriptions(false);
+      }
+    }
+
+    fetchAlertSubscriptions();
   }, [user]);
 
   // Purchased tickets (buyer)
@@ -465,6 +513,41 @@ export default function DashboardPage() {
     }
   };
 
+  const handleUnsubscribeAlert = async (eventId) => {
+    setUnsubscribingEventId(eventId);
+    setAlertSubscriptionsError('');
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setAlertSubscriptionsError('Je sessie is verlopen. Log opnieuw in.');
+        return;
+      }
+
+      const response = await fetch('/api/events/availability-subscriptions', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ eventId }),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setAlertSubscriptionsError(json?.error || 'Afmelden voor melding mislukt.');
+        return;
+      }
+
+      setAlertSubscriptions((prev) => prev.filter((item) => item.eventId !== eventId));
+    } catch (err) {
+      console.error('Error unsubscribing alert:', err);
+      setAlertSubscriptionsError('Afmelden voor melding mislukt.');
+    } finally {
+      setUnsubscribingEventId(null);
+    }
+  };
+
   // Stats
   const activeCount = sellerTickets.filter((tk) => tk.status === 'available').length;
   const soldCount = sellerTickets.filter((tk) => tk.status === 'sold').length;
@@ -566,6 +649,60 @@ export default function DashboardPage() {
                 <p className="text-xs uppercase tracking-[0.18em] text-slate-400">{t('dash.bought', lang)}</p>
                 <p className="mt-2 text-2xl font-semibold text-sky-600">{boughtCount}</p>
               </div>
+            </section>
+
+            <section className="mb-8 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-100">
+              <h2 className="mb-3 text-sm font-semibold text-slate-900">Ticket alerts</h2>
+              {alertSubscriptionsError && (
+                <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                  {alertSubscriptionsError}
+                </div>
+              )}
+              {loadingAlertSubscriptions ? (
+                <div className="rounded-xl border border-slate-100 px-4 py-6 text-center text-xs text-slate-500">
+                  {t('dash.loading', lang)}
+                </div>
+              ) : alertSubscriptions.length === 0 ? (
+                <div className="rounded-xl border border-slate-100 px-4 py-6 text-center text-xs text-slate-500">
+                  Je hebt nog geen actieve ticket alerts.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {alertSubscriptions.map((subscription) => (
+                    <div
+                      key={subscription.id}
+                      className="flex flex-col gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div>
+                        <Link
+                          href={`/markt/${subscription.eventId}`}
+                          className="text-sm font-medium text-slate-900 hover:text-sky-700 hover:underline"
+                        >
+                          {subscription.eventName}
+                        </Link>
+                        <p className="text-xs text-slate-500">
+                          {subscription.eventDate
+                            ? new Date(subscription.eventDate).toLocaleDateString('nl-NL', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                              })
+                            : 'Datum onbekend'}
+                          {subscription.location ? ` · ${subscription.location}` : ''}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleUnsubscribeAlert(subscription.eventId)}
+                        disabled={unsubscribingEventId === subscription.eventId}
+                        className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-medium text-rose-700 hover:border-rose-300 hover:bg-rose-100 disabled:opacity-60"
+                      >
+                        {unsubscribingEventId === subscription.eventId ? 'Bezig...' : 'Uitschrijven'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
 
             {/* Verkoper: Mijn aangeboden tickets */}

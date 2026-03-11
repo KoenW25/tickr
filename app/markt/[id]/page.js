@@ -33,6 +33,8 @@ export default function EventDetailPage() {
   const [bidError, setBidError] = useState('');
   const [bidSuccess, setBidSuccess] = useState('');
   const [notifyLoading, setNotifyLoading] = useState(false);
+  const [notifyStatusLoading, setNotifyStatusLoading] = useState(false);
+  const [notifySubscribed, setNotifySubscribed] = useState(false);
   const [notifyMessage, setNotifyMessage] = useState('');
 
   useEffect(() => {
@@ -127,6 +129,46 @@ export default function EventDetailPage() {
     init();
   }, [eventId]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadNotifyStatus() {
+      if (!user?.id) {
+        if (isMounted) setNotifySubscribed(false);
+        return;
+      }
+
+      setNotifyStatusLoading(true);
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+          if (isMounted) setNotifySubscribed(false);
+          return;
+        }
+
+        const response = await fetch(`/api/events/availability-subscriptions?eventId=${eventId}`, {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
+        const json = await response.json().catch(() => ({}));
+        if (!response.ok) return;
+        if (isMounted) setNotifySubscribed(Boolean(json?.subscribed));
+      } catch (err) {
+        console.error('Notify status error:', err);
+      } finally {
+        if (isMounted) setNotifyStatusLoading(false);
+      }
+    }
+
+    loadNotifyStatus();
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id, eventId]);
+
   const handleSubmitBid = async () => {
     if (!user) {
       router.push('/login');
@@ -186,7 +228,7 @@ export default function EventDetailPage() {
 
   const handleNotifyOnAvailability = async () => {
     if (!user) {
-      router.push('/login');
+      router.push(`/login?next=/markt/${eventId}`);
       return;
     }
 
@@ -202,24 +244,39 @@ export default function EventDetailPage() {
         return;
       }
 
-      const response = await fetch('/api/events/subscribe-availability', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ eventId }),
-      });
+      const response = notifySubscribed
+        ? await fetch('/api/events/availability-subscriptions', {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({ eventId }),
+          })
+        : await fetch('/api/events/subscribe-availability', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({ eventId }),
+          });
       const json = await response.json().catch(() => ({}));
       if (!response.ok) {
         setNotifyMessage(json?.error || 'Aanmelden voor melding mislukt.');
         return;
       }
 
-      setNotifyMessage('Je krijgt een mail zodra er een ticket beschikbaar is.');
+      if (notifySubscribed) {
+        setNotifySubscribed(false);
+        setNotifyMessage('Je bent afgemeld voor deze ticket alert.');
+      } else {
+        setNotifySubscribed(true);
+        setNotifyMessage('Je krijgt een mail zodra er een ticket beschikbaar is.');
+      }
     } catch (err) {
       console.error('Notify subscribe error:', err);
-      setNotifyMessage('Aanmelden voor melding mislukt.');
+      setNotifyMessage(notifySubscribed ? 'Afmelden voor melding mislukt.' : 'Aanmelden voor melding mislukt.');
     } finally {
       setNotifyLoading(false);
     }
@@ -324,10 +381,16 @@ export default function EventDetailPage() {
                   <button
                     type="button"
                     onClick={handleNotifyOnAvailability}
-                    disabled={notifyLoading}
+                    disabled={notifyLoading || notifyStatusLoading}
                     className="rounded-full border border-violet-200 bg-violet-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-violet-700 transition hover:border-violet-300 hover:bg-violet-100 disabled:opacity-60"
                   >
-                    {notifyLoading ? 'Bezig...' : 'Mail bij aanbod'}
+                    {notifyLoading
+                      ? 'Bezig...'
+                      : notifyStatusLoading
+                        ? 'Even laden...'
+                        : notifySubscribed
+                          ? 'Uitschrijven alert'
+                          : 'Mail bij aanbod'}
                   </button>
                 )}
                 <Link
