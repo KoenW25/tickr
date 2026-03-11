@@ -23,12 +23,16 @@ export default function CheckoutPage() {
   useEffect(() => {
     async function init() {
       try {
-        const { data: authData, error: authError } = await supabase.auth.getUser();
-        if (authError || !authData.user) {
-          router.replace('/login');
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!session?.user) {
+          router.replace(`/login?next=/checkout/${id}`);
           return;
         }
-        setUser(authData.user);
+        const authUser = session.user;
+        setUser(authUser);
 
         const { data: ticketData, error: ticketError } = await supabase
           .from('tickets')
@@ -48,7 +52,7 @@ export default function CheckoutPage() {
             setError(t('checkout.expired', lang));
             return;
           }
-          if (ticketData.reserved_for !== authData.user.id) {
+          if (ticketData.reserved_for !== authUser.id) {
             setError(t('checkout.otherBuyer', lang));
             return;
           }
@@ -57,7 +61,7 @@ export default function CheckoutPage() {
             .from('bids')
             .select('id, bid_price')
             .eq('ticket_id', ticketData.id)
-            .eq('user_id', authData.user.id)
+            .eq('user_id', authUser.id)
             .eq('status', 'accepted')
             .order('created_at', { ascending: false })
             .limit(1)
@@ -165,6 +169,14 @@ export default function CheckoutPage() {
         <div className="rounded-2xl border border-rose-200 bg-rose-50 px-6 py-4 text-center text-sm text-rose-700">
           {error}
         </div>
+      </div>
+    );
+  }
+
+  if (!ticket) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-900">
+        <p className="text-sm text-slate-500">{t('checkout.loading', lang)}</p>
       </div>
     );
   }
