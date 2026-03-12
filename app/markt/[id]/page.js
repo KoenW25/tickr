@@ -10,9 +10,9 @@ import { calculateBuyerTotal, calculateServiceFee, formatPrice } from '@/lib/fee
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
 export default function EventDetailPage() {
-  const isValidHalfEuroStep = (amount) => {
+  const isValidOneEuroStep = (amount) => {
     const cents = Math.round(Number(amount) * 100);
-    return Number.isFinite(cents) && cents % 50 === 0;
+    return Number.isFinite(cents) && cents % 100 === 0;
   };
 
   const { lang } = useLanguage();
@@ -36,6 +36,10 @@ export default function EventDetailPage() {
   const [notifyStatusLoading, setNotifyStatusLoading] = useState(false);
   const [notifySubscribed, setNotifySubscribed] = useState(false);
   const [notifyMessage, setNotifyMessage] = useState('');
+  const [priceEditorOpen, setPriceEditorOpen] = useState(false);
+  const [priceDraftByTicketId, setPriceDraftByTicketId] = useState({});
+  const [savingPriceTicketId, setSavingPriceTicketId] = useState(null);
+  const [priceEditorMessage, setPriceEditorMessage] = useState('');
 
   useEffect(() => {
     async function init() {
@@ -189,7 +193,7 @@ export default function EventDetailPage() {
       setBidError(t('event.invalidAmount', lang));
       return;
     }
-    if (!isValidHalfEuroStep(numeric)) {
+    if (!isValidOneEuroStep(numeric)) {
       setBidError(t('event.invalidStep', lang));
       return;
     }
@@ -282,6 +286,76 @@ export default function EventDetailPage() {
     }
   };
 
+  const parsePriceInput = (value) => {
+    const normalized = String(value ?? '')
+      .trim()
+      .replace(',', '.')
+      .replace(/[^0-9.]/g, '');
+    return Number(normalized);
+  };
+
+  const handleOpenPriceEditor = () => {
+    const ownTickets = tickets.filter((ticket) => ticket.user_id === user?.id);
+    const nextDrafts = {};
+    for (const ticket of ownTickets) {
+      nextDrafts[ticket.id] = Number(ticket.ask_price).toFixed(2).replace('.', ',');
+    }
+    setPriceDraftByTicketId(nextDrafts);
+    setPriceEditorMessage('');
+    setPriceEditorOpen((prev) => !prev);
+  };
+
+  const handleSaveTicketPrice = async (ticketId) => {
+    if (!user?.id) {
+      router.push(`/login?next=/markt/${eventId}`);
+      return;
+    }
+
+    const numericPrice = parsePriceInput(priceDraftByTicketId[ticketId]);
+    if (!Number.isFinite(numericPrice) || numericPrice <= 0) {
+      setPriceEditorMessage('Voer een geldige prijs in.');
+      return;
+    }
+    if (!isValidOneEuroStep(numericPrice)) {
+      setPriceEditorMessage('Prijs moet in stappen van €1,00.');
+      return;
+    }
+
+    setSavingPriceTicketId(ticketId);
+    setPriceEditorMessage('');
+    try {
+      const { data, error } = await supabase
+        .from('tickets')
+        .update({ ask_price: numericPrice })
+        .eq('id', ticketId)
+        .eq('user_id', user.id)
+        .eq('status', 'available')
+        .select('id, ask_price, user_id, status')
+        .single();
+
+      if (error || !data) {
+        setPriceEditorMessage('Prijs aanpassen mislukt.');
+        return;
+      }
+
+      setTickets((prev) =>
+        prev
+          .map((ticket) => (ticket.id === data.id ? { ...ticket, ask_price: data.ask_price } : ticket))
+          .sort((a, b) => Number(a.ask_price) - Number(b.ask_price))
+      );
+      setPriceDraftByTicketId((prev) => ({
+        ...prev,
+        [ticketId]: Number(data.ask_price).toFixed(2).replace('.', ','),
+      }));
+      setPriceEditorMessage('Prijs aangepast.');
+    } catch (err) {
+      console.error('Event page ticket price update failed:', err);
+      setPriceEditorMessage('Prijs aanpassen mislukt.');
+    } finally {
+      setSavingPriceTicketId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
@@ -310,6 +384,7 @@ export default function EventDetailPage() {
   const cheapestTicket = tickets.find((tk) => Number(tk.ask_price) === lowestAsk);
   const isOwnCheapestTicket =
     Boolean(user?.id) && Boolean(cheapestTicket?.user_id) && user.id === cheapestTicket.user_id;
+  const ownAvailableTickets = tickets.filter((ticket) => ticket.user_id === user?.id);
   const highestBid = bids.length > 0 ? Number(bids[0].bid_price) : null;
   const spread = lowestAsk != null && highestBid != null ? lowestAsk - highestBid : null;
   const groupedBids = Object.values(
@@ -399,6 +474,15 @@ export default function EventDetailPage() {
                 >
                   {t('nav.sell', lang)}
                 </Link>
+                {ownAvailableTickets.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleOpenPriceEditor}
+                    className="rounded-full border border-sky-200 bg-sky-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-sky-700 transition hover:border-sky-300 hover:bg-sky-100"
+                  >
+                    Prijs aanpassen
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -410,7 +494,60 @@ export default function EventDetailPage() {
           {notifyMessage && lowestAsk == null && (
             <p className="mt-2 text-xs text-slate-500">{notifyMessage}</p>
           )}
+          {priceEditorMessage && (
+            <p
+              className={`mt-2 text-xs ${
+                priceEditorMessage.toLowerCase().includes('mislukt') || priceEditorMessage.toLowerCase().includes('geldige')
+                  ? 'text-rose-600'
+                  : 'text-emerald-600'
+              }`}
+            >
+              {priceEditorMessage}
+            </p>
+          )}
         </header>
+
+        {priceEditorOpen && ownAvailableTickets.length > 0 && (
+          <section className="mb-8 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-100">
+            <h2 className="mb-3 text-sm font-semibold text-slate-900">Jouw aangeboden tickets</h2>
+            <div className="space-y-2">
+              {ownAvailableTickets.map((ticket) => (
+                <div
+                  key={ticket.id}
+                  className="flex flex-col gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <p className="text-xs text-slate-500">
+                    Ticket #{ticket.id} · Huidige prijs: € {formatPrice(ticket.ask_price)}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <div className="relative w-28">
+                      <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-[11px] text-slate-400">
+                        €
+                      </span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={priceDraftByTicketId[ticket.id] ?? ''}
+                        onChange={(e) =>
+                          setPriceDraftByTicketId((prev) => ({ ...prev, [ticket.id]: e.target.value }))
+                        }
+                        className="w-full rounded-full border border-slate-200 bg-white py-1.5 pl-5 pr-2 text-xs text-slate-900 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleSaveTicketPrice(ticket.id)}
+                      disabled={savingPriceTicketId === ticket.id}
+                      className="rounded-full bg-emerald-500 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-400 disabled:opacity-60"
+                    >
+                      {savingPriceTicketId === ticket.id ? 'Opslaan...' : 'Opslaan'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Spread overview */}
         <section className="mb-8 grid gap-4 grid-cols-2 sm:grid-cols-4">

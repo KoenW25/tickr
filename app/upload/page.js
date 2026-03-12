@@ -88,9 +88,9 @@ export default function UploadPage() {
 }
 
 function UploadPageContent() {
-  const isValidHalfEuroStep = (amount) => {
+  const isValidOneEuroStep = (amount) => {
     const cents = Math.round(Number(amount) * 100);
-    return Number.isFinite(cents) && cents % 50 === 0;
+    return Number.isFinite(cents) && cents % 100 === 0;
   };
 
   const { lang } = useLanguage();
@@ -598,7 +598,7 @@ function UploadPageContent() {
       setErrorMessage(t('upload.errInvalidPrice', lang));
       return;
     }
-    if (!isValidHalfEuroStep(numericPrice)) {
+    if (!isValidOneEuroStep(numericPrice)) {
       setErrorMessage(t('upload.errInvalidStep', lang));
       return;
     }

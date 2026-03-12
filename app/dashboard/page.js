@@ -19,6 +19,10 @@ export default function DashboardPage() {
   const [deletingId, setDeletingId] = useState(null);
   const [sendingPrivateLinkId, setSendingPrivateLinkId] = useState(null);
   const [privateLinkMessageByTicketId, setPrivateLinkMessageByTicketId] = useState({});
+  const [editingPriceTicketId, setEditingPriceTicketId] = useState(null);
+  const [editingAskPrice, setEditingAskPrice] = useState('');
+  const [savingPriceTicketId, setSavingPriceTicketId] = useState(null);
+  const [priceUpdateMessageByTicketId, setPriceUpdateMessageByTicketId] = useState({});
 
   const [purchasedTickets, setPurchasedTickets] = useState([]);
   const [loadingPurchased, setLoadingPurchased] = useState(true);
@@ -513,6 +517,80 @@ export default function DashboardPage() {
     }
   };
 
+  const isValidOneEuroStep = (amount) => {
+    const cents = Math.round(Number(amount) * 100);
+    return Number.isFinite(cents) && cents % 100 === 0;
+  };
+
+  const parsePriceInput = (value) => {
+    const normalized = String(value ?? '')
+      .trim()
+      .replace(',', '.')
+      .replace(/[^0-9.]/g, '');
+    return Number(normalized);
+  };
+
+  const handleStartEditTicketPrice = (ticket) => {
+    setEditingPriceTicketId(ticket.id);
+    setEditingAskPrice(
+      ticket.ask_price != null ? Number(ticket.ask_price).toFixed(2).replace('.', ',') : ''
+    );
+    setPriceUpdateMessageByTicketId((prev) => ({ ...prev, [ticket.id]: '' }));
+    setTicketsError(null);
+  };
+
+  const handleCancelEditTicketPrice = () => {
+    setEditingPriceTicketId(null);
+    setEditingAskPrice('');
+  };
+
+  const handleSaveTicketPrice = async (ticket) => {
+    const numericPrice = parsePriceInput(editingAskPrice);
+    if (!Number.isFinite(numericPrice) || numericPrice <= 0) {
+      setTicketsError('Voer een geldige prijs in.');
+      return;
+    }
+    if (!isValidOneEuroStep(numericPrice)) {
+      setTicketsError('Prijs moet in stappen van €1,00.');
+      return;
+    }
+
+    setSavingPriceTicketId(ticket.id);
+    setTicketsError(null);
+    setPriceUpdateMessageByTicketId((prev) => ({ ...prev, [ticket.id]: '' }));
+
+    try {
+      const { data, error } = await supabase
+        .from('tickets')
+        .update({ ask_price: numericPrice })
+        .eq('id', ticket.id)
+        .eq('user_id', user.id)
+        .eq('status', 'available')
+        .select('id, ask_price')
+        .single();
+
+      if (error || !data) {
+        setTicketsError('Prijs aanpassen mislukt.');
+        return;
+      }
+
+      setSellerTickets((prev) =>
+        prev.map((tk) => (tk.id === ticket.id ? { ...tk, ask_price: data.ask_price } : tk))
+      );
+      setPriceUpdateMessageByTicketId((prev) => ({
+        ...prev,
+        [ticket.id]: 'Prijs aangepast.',
+      }));
+      setEditingPriceTicketId(null);
+      setEditingAskPrice('');
+    } catch (err) {
+      console.error('Error updating ticket price:', err);
+      setTicketsError('Prijs aanpassen mislukt.');
+    } finally {
+      setSavingPriceTicketId(null);
+    }
+  };
+
   const handleUnsubscribeAlert = async (eventId) => {
     setUnsubscribingEventId(eventId);
     setAlertSubscriptionsError('');
@@ -773,32 +851,79 @@ export default function DashboardPage() {
                             </td>
                             <td className="px-3 py-2 text-right text-xs" onClick={(e) => e.stopPropagation()}>
                               {ticket.status === 'available' ? (
-                                <div className="flex justify-end gap-2">
-                                  {ticket.is_private ? (
+                                editingPriceTicketId === ticket.id ? (
+                                  <div className="flex flex-col items-end gap-1.5">
+                                    <div className="relative w-28">
+                                      <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-[11px] text-slate-400">
+                                        €
+                                      </span>
+                                      <input
+                                        type="text"
+                                        inputMode="decimal"
+                                        value={editingAskPrice}
+                                        onChange={(e) => setEditingAskPrice(e.target.value)}
+                                        className="w-full rounded-full border border-slate-200 bg-white py-1 pl-5 pr-2 text-[11px] text-slate-900 focus:border-sky-400 focus:outline-none focus:ring-1 focus:ring-sky-400"
+                                      />
+                                    </div>
+                                    <div className="flex gap-1.5">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleSaveTicketPrice(ticket)}
+                                        disabled={savingPriceTicketId === ticket.id}
+                                        className="rounded-full bg-emerald-500 px-2.5 py-1 text-[10px] font-medium text-white hover:bg-emerald-400 disabled:opacity-60"
+                                      >
+                                        {savingPriceTicketId === ticket.id ? 'Opslaan...' : 'Opslaan'}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={handleCancelEditTicketPrice}
+                                        disabled={savingPriceTicketId === ticket.id}
+                                        className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-medium text-slate-600 hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60"
+                                      >
+                                        Annuleren
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="flex justify-end gap-2">
+                                    {ticket.is_private ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleSendPrivateLink(ticket)}
+                                        disabled={sendingPrivateLinkId === ticket.id}
+                                        className="rounded-full bg-violet-500 px-3 py-1 text-[11px] font-medium text-white shadow-sm shadow-violet-500/30 hover:bg-violet-400 disabled:opacity-60"
+                                      >
+                                        {sendingPrivateLinkId === ticket.id ? 'Versturen...' : 'Stuur betaallink'}
+                                      </button>
+                                    ) : null}
                                     <button
                                       type="button"
-                                      onClick={() => handleSendPrivateLink(ticket)}
-                                      disabled={sendingPrivateLinkId === ticket.id}
-                                      className="rounded-full bg-violet-500 px-3 py-1 text-[11px] font-medium text-white shadow-sm shadow-violet-500/30 hover:bg-violet-400 disabled:opacity-60"
+                                      onClick={() => handleStartEditTicketPrice(ticket)}
+                                      className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[11px] font-medium text-sky-700 hover:border-sky-300 hover:bg-sky-100"
                                     >
-                                      {sendingPrivateLinkId === ticket.id ? 'Versturen...' : 'Stuur betaallink'}
+                                      Prijs aanpassen
                                     </button>
-                                  ) : null}
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteTicket(ticket)}
-                                    disabled={deletingId === ticket.id}
-                                    className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-medium text-rose-700 hover:border-rose-300 hover:bg-rose-100 disabled:opacity-60"
-                                  >
-                                    {deletingId === ticket.id ? t('dash.deleting', lang) : t('dash.delete', lang)}
-                                  </button>
-                                </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteTicket(ticket)}
+                                      disabled={deletingId === ticket.id}
+                                      className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-medium text-rose-700 hover:border-rose-300 hover:bg-rose-100 disabled:opacity-60"
+                                    >
+                                      {deletingId === ticket.id ? t('dash.deleting', lang) : t('dash.delete', lang)}
+                                    </button>
+                                  </div>
+                                )
                               ) : (
                                 <span className="text-[10px] text-slate-400">—</span>
                               )}
                               {privateLinkMessageByTicketId[ticket.id] && (
                                 <p className="mt-1 text-[10px] text-violet-700">
                                   {privateLinkMessageByTicketId[ticket.id]}
+                                </p>
+                              )}
+                              {priceUpdateMessageByTicketId[ticket.id] && (
+                                <p className="mt-1 text-[10px] text-emerald-700">
+                                  {priceUpdateMessageByTicketId[ticket.id]}
                                 </p>
                               )}
                             </td>
