@@ -332,18 +332,46 @@ export default function DashboardPage() {
     }
   };
 
-  const extractStoragePathFromUrl = (url) => {
+  const extractStorageObjectFromUrl = (url) => {
     if (!url) return null;
-    const markers = [
+    const normalized = decodeURIComponent(String(url)).trim();
+    const defaultBucket = 'tickets';
+
+    if (!normalized.startsWith('http')) {
+      const withoutQuery = normalized.split('?')[0].replace(/^\/+/, '');
+      return { bucket: defaultBucket, path: withoutQuery };
+    }
+
+    const specificMarkers = [
       '/storage/v1/object/public/tickets/',
       '/storage/v1/object/authenticated/tickets/',
       '/storage/v1/object/sign/tickets/',
     ];
-    for (const marker of markers) {
-      const index = url.indexOf(marker);
-      if (index !== -1) return decodeURIComponent(url.substring(index + marker.length).split('?')[0]);
+    for (const marker of specificMarkers) {
+      const index = normalized.indexOf(marker);
+      if (index !== -1) {
+        return {
+          bucket: defaultBucket,
+          path: normalized.substring(index + marker.length).split('?')[0],
+        };
+      }
     }
-    return url;
+
+    const genericMarkers = [
+      '/storage/v1/object/public/',
+      '/storage/v1/object/authenticated/',
+      '/storage/v1/object/sign/',
+    ];
+    for (const marker of genericMarkers) {
+      const index = normalized.indexOf(marker);
+      if (index === -1) continue;
+      const tail = normalized.substring(index + marker.length).split('?')[0];
+      const [bucket, ...rest] = tail.split('/');
+      if (!bucket || rest.length === 0) continue;
+      return { bucket, path: rest.join('/') };
+    }
+
+    return null;
   };
 
   const handleDeleteTicket = async (ticket) => {
@@ -351,9 +379,11 @@ export default function DashboardPage() {
     setDeletingId(ticket.id);
     setTicketsError(null);
     try {
-      const storagePath = extractStoragePathFromUrl(ticket.pdf_url);
-      if (storagePath) {
-        const { error: storageError } = await supabase.storage.from('tickets').remove([storagePath]);
+      const storageObject = extractStorageObjectFromUrl(ticket.pdf_url);
+      if (storageObject?.path && storageObject?.bucket) {
+        const { error: storageError } = await supabase.storage
+          .from(storageObject.bucket)
+          .remove([storageObject.path]);
         if (storageError) console.error('Error deleting ticket PDF from storage:', storageError);
       }
       const { error: deleteError } = await supabase.from('tickets').delete().eq('id', ticket.id);
@@ -496,23 +526,23 @@ export default function DashboardPage() {
   const handleDownloadTicket = async (pdfUrl) => {
     const newTab = window.open('', '_blank');
 
-    const filePath = extractStoragePathFromUrl(pdfUrl);
-    if (!filePath) {
+    const storageObject = extractStorageObjectFromUrl(pdfUrl);
+    if (!storageObject?.path || !storageObject?.bucket) {
       if (newTab) newTab.location.href = pdfUrl;
       return;
     }
 
     try {
       const { data, error } = await supabase.storage
-        .from('tickets')
-        .createSignedUrl(filePath, 60);
+        .from(storageObject.bucket)
+        .createSignedUrl(storageObject.path, 60);
 
       if (error || !data?.signedUrl) throw error;
 
       if (newTab) newTab.location.href = data.signedUrl;
       else window.location.href = data.signedUrl;
     } catch (err) {
-      console.error('Download error:', err, '| filePath:', filePath);
+      console.error('Download error:', err, '| storage:', storageObject);
       if (newTab) newTab.location.href = pdfUrl;
       else window.location.href = pdfUrl;
     }
