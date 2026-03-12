@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import supabase from '@/lib/supabase';
 import { useLanguage } from '@/lib/LanguageContext';
 import { t } from '@/lib/translations';
+import { eventToSlug } from '@/lib/eventSlug';
 
 export default function Navbar() {
   const tickerDuration = '35s';
@@ -145,7 +146,7 @@ export default function Navbar() {
       .map((ev) => ({
         id: `event-${ev.id}`,
         label: String(ev?.name || 'Onbekend event'),
-        href: `/markt/${ev.id}`,
+        href: `/markt/${eventToSlug(ev)}`,
         type: 'event',
       }));
 
@@ -355,7 +356,7 @@ export default function Navbar() {
                   {tickerEvents.map((event) => (
                     <Link
                       key={`${copy}-${event.id}`}
-                      href={`/markt/${event.id}`}
+                      href={`/markt/${eventToSlug(event)}`}
                       className="flex items-baseline gap-2 hover:opacity-80 transition-opacity cursor-pointer"
                     >
                       <span className="text-slate-200 tracking-[0.18em] text-[11px]">

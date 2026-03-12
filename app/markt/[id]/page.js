@@ -7,6 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import supabase from '@/lib/supabase';
 import { calculateBuyerTotal, calculateServiceFee, formatPrice } from '@/lib/fees';
+import { eventToSlug, slugifyEventName } from '@/lib/eventSlug';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
 export default function EventDetailPage() {
@@ -16,11 +17,12 @@ export default function EventDetailPage() {
   };
 
   const { lang } = useLanguage();
-  const { id: eventId } = useParams();
+  const { id: eventParam } = useParams();
   const router = useRouter();
 
   const [user, setUser] = useState(null);
   const [event, setEvent] = useState(null);
+  const [resolvedEventId, setResolvedEventId] = useState(null);
   const [tickets, setTickets] = useState([]);
   const [bids, setBids] = useState([]);
   const [transactionCount, setTransactionCount] = useState(0);
@@ -48,11 +50,28 @@ export default function EventDetailPage() {
         const { data: authData } = await supabase.auth.getUser();
         setUser(authData?.user ?? null);
 
-        const { data: eventData, error: eventErr } = await supabase
-          .from('events')
-          .select('id, name, date, venue, venue_name, city, country_code')
-          .eq('id', eventId)
-          .single();
+        const parsedEventId = Number(eventParam);
+        const isNumericEventParam = Number.isInteger(parsedEventId) && parsedEventId > 0;
+        let eventData = null;
+        let eventErr = null;
+
+        if (isNumericEventParam) {
+          const { data, error } = await supabase
+            .from('events')
+            .select('id, name, date, venue, venue_name, city, country_code')
+            .eq('id', parsedEventId)
+            .maybeSingle();
+          eventData = data;
+          eventErr = error;
+        } else {
+          const { data, error } = await supabase
+            .from('events')
+            .select('id, name, date, venue, venue_name, city, country_code');
+          eventErr = error;
+          if (!error) {
+            eventData = (data ?? []).find((candidate) => slugifyEventName(candidate?.name) === eventParam) || null;
+          }
+        }
 
         if (eventErr) throw eventErr;
         if (!eventData) {
@@ -60,11 +79,12 @@ export default function EventDetailPage() {
           return;
         }
         setEvent(eventData);
+        setResolvedEventId(Number(eventData.id));
 
         const { data: ticketsData } = await supabase
           .from('tickets')
           .select('id, ask_price, status, user_id')
-          .eq('event_id', eventId)
+          .eq('event_id', eventData.id)
           .eq('status', 'available')
           .not('ask_price', 'is', null)
           .order('ask_price', { ascending: true });
@@ -89,7 +109,7 @@ export default function EventDetailPage() {
         const { data: eventBids } = await supabase
           .from('bids')
           .select('id, bid_price, created_at, status, ticket_id, event_id')
-          .eq('event_id', eventId)
+          .eq('event_id', eventData.id)
           .is('ticket_id', null)
           .eq('status', 'pending')
           .order('bid_price', { ascending: false });
@@ -107,7 +127,7 @@ export default function EventDetailPage() {
 
         setBids(unique);
 
-        const txRes = await fetch(`/api/events/${eventId}/transactions`);
+        const txRes = await fetch(`/api/events/${eventData.id}/transactions`);
         if (txRes.ok) {
           const txJson = await txRes.json();
           const points = (txJson?.points ?? []).map((tx) => ({
@@ -131,13 +151,13 @@ export default function EventDetailPage() {
       }
     }
     init();
-  }, [eventId]);
+  }, [eventParam]);
 
   useEffect(() => {
     let isMounted = true;
 
     async function loadNotifyStatus() {
-      if (!user?.id) {
+      if (!user?.id || !resolvedEventId) {
         if (isMounted) setNotifySubscribed(false);
         return;
       }
@@ -152,7 +172,7 @@ export default function EventDetailPage() {
           return;
         }
 
-        const response = await fetch(`/api/events/availability-subscriptions?eventId=${eventId}`, {
+        const response = await fetch(`/api/events/availability-subscriptions?eventId=${resolvedEventId}`, {
           headers: {
             Authorization: `Bearer ${session.access_token}`,
           },
@@ -171,11 +191,24 @@ export default function EventDetailPage() {
     return () => {
       isMounted = false;
     };
-  }, [user?.id, eventId]);
+  }, [user?.id, resolvedEventId]);
+
+  useEffect(() => {
+    if (!event?.name) return;
+    const canonicalSlug = eventToSlug(event);
+    if (!canonicalSlug) return;
+    if (eventParam !== canonicalSlug) {
+      router.replace(`/markt/${canonicalSlug}`);
+    }
+  }, [event?.name, event?.id, eventParam, router]);
 
   const handleSubmitBid = async () => {
     if (!user) {
       router.push('/login');
+      return;
+    }
+    if (!resolvedEventId) {
+      setBidError(t('event.loadError', lang));
       return;
     }
 
@@ -206,7 +239,7 @@ export default function EventDetailPage() {
       const { data, error: insertErr } = await supabase
         .from('bids')
         .insert({
-          event_id: Number(eventId),
+          event_id: Number(resolvedEventId),
           ticket_id: null,
           user_id: user.id,
           bid_price: numeric,
@@ -232,9 +265,10 @@ export default function EventDetailPage() {
 
   const handleNotifyOnAvailability = async () => {
     if (!user) {
-      router.push(`/login?next=/markt/${eventId}`);
+      router.push(`/login?next=/markt/${eventParam}`);
       return;
     }
+    if (!resolvedEventId) return;
 
     setNotifyLoading(true);
     setNotifyMessage('');
@@ -255,7 +289,7 @@ export default function EventDetailPage() {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${session.access_token}`,
             },
-            body: JSON.stringify({ eventId }),
+            body: JSON.stringify({ eventId: resolvedEventId }),
           })
         : await fetch('/api/events/subscribe-availability', {
             method: 'POST',
@@ -263,7 +297,7 @@ export default function EventDetailPage() {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${session.access_token}`,
             },
-            body: JSON.stringify({ eventId }),
+            body: JSON.stringify({ eventId: resolvedEventId }),
           });
       const json = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -307,7 +341,7 @@ export default function EventDetailPage() {
 
   const handleSaveTicketPrice = async (ticketId) => {
     if (!user?.id) {
-      router.push(`/login?next=/markt/${eventId}`);
+      router.push(`/login?next=/markt/${eventParam}`);
       return;
     }
 
@@ -469,7 +503,7 @@ export default function EventDetailPage() {
                   </button>
                 )}
                 <Link
-                  href={`/upload?eventId=${eventId}`}
+                  href={resolvedEventId ? `/upload?eventId=${resolvedEventId}` : '/upload'}
                   className="rounded-full bg-emerald-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-md shadow-emerald-500/30 transition hover:bg-emerald-400"
                 >
                   {t('nav.sell', lang)}

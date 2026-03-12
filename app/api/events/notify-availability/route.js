@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendEventAvailabilityAlertEmail } from '@/lib/email';
+import { eventToSlug } from '@/lib/eventSlug';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -98,7 +99,7 @@ export async function POST(request) {
 
       const lowestAsk = lowestAskByEventId[eventId] ?? Number(ticket.ask_price);
       const eventName = ticket.event_name || `Event #${eventId}`;
-      const eventUrl = `${baseUrl}/markt/${eventId}`;
+      const eventUrl = `${baseUrl}/markt/${eventToSlug({ name: eventName })}`;
 
       await sendEventAvailabilityAlertEmail(
         subscription.email,

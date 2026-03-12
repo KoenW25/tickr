@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/lib/LanguageContext';
 import { t } from '@/lib/translations';
 import supabase from '@/lib/supabase';
+import { eventToSlug } from '@/lib/eventSlug';
 
 export default function DashboardPage() {
   const { lang } = useLanguage();
@@ -753,7 +754,7 @@ export default function DashboardPage() {
                     >
                       <div>
                         <Link
-                          href={`/markt/${subscription.eventId}`}
+                          href={`/markt/${eventToSlug({ name: subscription.eventName })}`}
                           className="text-sm font-medium text-slate-900 hover:text-sky-700 hover:underline"
                         >
                           {subscription.eventName}
@@ -808,7 +809,8 @@ export default function DashboardPage() {
                       {sellerTickets.map((ticket) => {
                         const name = ticket.eventInfo?.name || ticket.event_name || t('dash.ticket', lang);
                         const date = ticket.eventInfo?.date || ticket.event_date;
-                        const eventHref = ticket.event_id || ticket.eventInfo?.id ? `/markt/${ticket.event_id || ticket.eventInfo?.id}` : null;
+                        const eventNameForHref = ticket.eventInfo?.name || ticket.event_name;
+                        const eventHref = eventNameForHref ? `/markt/${eventToSlug({ name: eventNameForHref })}` : null;
                         return (
                           <tr
                             key={ticket.id}
@@ -957,7 +959,8 @@ export default function DashboardPage() {
                       {purchasedTickets.map((ticket) => {
                         const name = ticket.eventInfo?.name || ticket.event_name || t('dash.ticket', lang);
                         const date = ticket.eventInfo?.date || ticket.event_date;
-                        const eventHref = ticket.event_id || ticket.eventInfo?.id ? `/markt/${ticket.event_id || ticket.eventInfo?.id}` : null;
+                        const eventNameForHref = ticket.eventInfo?.name || ticket.event_name;
+                        const eventHref = eventNameForHref ? `/markt/${eventToSlug({ name: eventNameForHref })}` : null;
                         return (
                           <tr
                             key={ticket.id}

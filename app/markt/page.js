@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import supabase from '@/lib/supabase';
 import { calculateBuyerTotal, formatPrice } from '@/lib/fees';
+import { eventToSlug } from '@/lib/eventSlug';
 
 export default function MarktPage() {
   const { lang } = useLanguage();
@@ -501,7 +502,7 @@ function EventCard({ event, lang }) {
     .join(' - ');
 
   return (
-    <Link href={`/markt/${event.id}`} className="block">
+    <Link href={`/markt/${eventToSlug(event)}`} className="block">
       <article className={`flex flex-col justify-between rounded-2xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${isExpired ? 'border-slate-100 bg-slate-50 opacity-60' : 'border-slate-200 bg-white shadow-slate-100'}`}>
         <div className="space-y-1">
           <div className="flex items-center gap-2">
