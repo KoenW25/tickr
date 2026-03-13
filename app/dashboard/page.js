@@ -350,9 +350,12 @@ export default function DashboardPage() {
     for (const marker of specificMarkers) {
       const index = normalized.indexOf(marker);
       if (index !== -1) {
+        const visibility = marker.includes('/public/') ? 'public' : 'private';
         return {
           bucket: defaultBucket,
           path: normalized.substring(index + marker.length).split('?')[0],
+          visibility,
+          directUrl: visibility === 'public' ? normalized : null,
         };
       }
     }
@@ -368,7 +371,13 @@ export default function DashboardPage() {
       const tail = normalized.substring(index + marker.length).split('?')[0];
       const [bucket, ...rest] = tail.split('/');
       if (!bucket || rest.length === 0) continue;
-      return { bucket, path: rest.join('/') };
+      const visibility = marker.includes('/public/') ? 'public' : 'private';
+      return {
+        bucket,
+        path: rest.join('/'),
+        visibility,
+        directUrl: visibility === 'public' ? normalized : null,
+      };
     }
 
     return null;
@@ -529,6 +538,13 @@ export default function DashboardPage() {
     const storageObject = extractStorageObjectFromUrl(pdfUrl);
     if (!storageObject?.path || !storageObject?.bucket) {
       if (newTab) newTab.location.href = pdfUrl;
+      return;
+    }
+
+    // Public storage objects can be opened directly and avoid bucket lookup mismatches.
+    if (storageObject.visibility === 'public' && storageObject.directUrl) {
+      if (newTab) newTab.location.href = storageObject.directUrl;
+      else window.location.href = storageObject.directUrl;
       return;
     }
 
