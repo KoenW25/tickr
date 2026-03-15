@@ -302,7 +302,24 @@ export default function DashboardPage() {
         if (data) {
           setProfile({ phone: data.phone || '', email: data.email || '', iban: data.iban || '', full_name: data.full_name || '' });
         } else {
-          setProfile((prev) => ({ ...prev, email: user.email || '', full_name: user.user_metadata?.full_name || '' }));
+          const fallbackEmail = user.email || '';
+          const fallbackName = user.user_metadata?.full_name || user.user_metadata?.name || '';
+
+          // Ensure a profile row exists for first-time logins (e.g. OAuth users).
+          const { error: ensureError } = await supabase.from('profiles').upsert(
+            {
+              user_id: user.id,
+              email: fallbackEmail,
+              full_name: fallbackName,
+            },
+            { onConflict: 'user_id' }
+          );
+
+          if (ensureError) {
+            console.error('Error ensuring profile row exists:', ensureError);
+          }
+
+          setProfile((prev) => ({ ...prev, email: fallbackEmail, full_name: fallbackName }));
         }
       } catch (err) {
         console.error('Error fetching profile:', err);
