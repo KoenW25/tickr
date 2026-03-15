@@ -74,7 +74,7 @@ export async function POST(request) {
 
     const { data: ticket, error: ticketError } = await supabaseService
       .from('tickets')
-      .select('id, pdf_url, buyer_id, user_id')
+      .select('id, pdf_url, buyer_id, user_id, status')
       .eq('id', numericTicketId)
       .maybeSingle();
 
@@ -82,9 +82,8 @@ export async function POST(request) {
       return Response.json({ error: 'Ticket niet gevonden.' }, { status: 404 });
     }
 
-    const isOwner = ticket.user_id === user.id;
     const isBuyer = ticket.buyer_id === user.id;
-    if (!isOwner && !isBuyer) {
+    if (!isBuyer || ticket.status !== 'sold') {
       return Response.json({ error: 'Geen toegang tot dit ticket.' }, { status: 403 });
     }
 
